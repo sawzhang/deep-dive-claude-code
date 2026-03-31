@@ -1,0 +1,558 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 24 章：设计模式提炼 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part10-philosophy/ch24-design-patterns.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-24-章设计模式提炼"><a class="header" href="#第-24-章设计模式提炼">第 24 章：设计模式提炼</a></h1>
+<blockquote>
+<p>“设计模式不是教条，而是对反复出现的问题的最佳回答的提炼。在 Claude Code 中，这些模式被重新演绎为 Agent 时代的变体。”</p>
+</blockquote>
+<p>本章从 Claude Code 的源码中提炼出最具特色的设计模式。这些模式不是照搬 GoF 经典，而是在 AI Agent 系统的独特约束下演化出的新形态。</p>
+<h2 id="241-依赖注入--toolusecontext"><a class="header" href="#241-依赖注入--toolusecontext">24.1 依赖注入 —— ToolUseContext</a></h2>
+<h3 id="2411-模式描述"><a class="header" href="#2411-模式描述">24.1.1 模式描述</a></h3>
+<p><code>ToolUseContext</code> 是 Claude Code 中最核心的依赖注入容器。每个工具调用都接收一个 ToolUseContext 对象，其中包含了工具执行所需的全部环境信息：</p>
+<pre><code class="language-typescript">// src/Tool.ts
+export type ToolUseContext = {
+  options: {
+    mainLoopModel: string
+    maxThinkingTokens: number | undefined
+  }
+  agentId: AgentId
+  readFileState: FileStateCache
+  writeFileState: FileStateCache
+  tools: Tool[]
+  mcpClients: MCPServerConnection[]
+  canUseTool: CanUseToolFn
+  // ... 更多上下文
+}
+</code></pre>
+<h3 id="2412-为什么不用传统-di-框架"><a class="header" href="#2412-为什么不用传统-di-框架">24.1.2 为什么不用传统 DI 框架</a></h3>
+<p>Claude Code 没有使用 InversifyJS 或 tsyringe 等 DI 框架。ToolUseContext 是一个显式的参数对象（Parameter Object），而非容器管理的服务。原因在于：</p>
+<ol>
+<li><strong>生命周期明确</strong> —— Context 在每个查询轮次中创建，随轮次结束销毁</li>
+<li><strong>类型安全</strong> —— TypeScript 的结构类型系统已经提供了足够的接口抽象</li>
+<li><strong>可测试性</strong> —— 在测试中构造 Context 对象比配置 DI 容器更直观</li>
+</ol>
+<pre><code class="language-mermaid">graph TD
+    QueryLoop[查询循环] --&gt; |每轮创建| Context[ToolUseContext]
+    Context --&gt; BashTool[BashTool.call context]
+    Context --&gt; EditTool[FileEditTool.call context]
+    Context --&gt; ReadTool[FileReadTool.call context]
+    Context --&gt; AgentTool[AgentTool.call context]
+
+    Context --&gt; |包含| Model[model 配置]
+    Context --&gt; |包含| Cache[文件缓存]
+    Context --&gt; |包含| Perms[权限函数]
+</code></pre>
+<h3 id="2413-context-传播"><a class="header" href="#2413-context-传播">24.1.3 Context 传播</a></h3>
+<p>工具调用时，Context 被向下传播。子 Agent 接收父 Agent 的 Context 变体：</p>
+<pre><code class="language-typescript">// AgentTool 创建子 Context
+const childContext: ToolUseContext = {
+  ...parentContext,
+  agentId: childAgentId,
+  readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
+  // 子 Agent 获得独立的文件缓存但共享工具集
+}
+</code></pre>
+<h2 id="242-失败关闭--安全默认值"><a class="header" href="#242-失败关闭--安全默认值">24.2 失败关闭 —— 安全默认值</a></h2>
+<h3 id="2421-模式描述"><a class="header" href="#2421-模式描述">24.2.1 模式描述</a></h3>
+<p>在安全关键系统中，“失败关闭“意味着当系统无法确定正确的行为时，选择更安全（更限制性的）默认值。Claude Code 在权限系统中严格遵循这一原则。</p>
+<h3 id="2422-权限默认值"><a class="header" href="#2422-权限默认值">24.2.2 权限默认值</a></h3>
+<pre><code class="language-typescript">// src/state/AppStateStore.ts
+export function getDefaultAppState(): AppState {
+  return {
+    toolPermissionContext: {
+      ...getEmptyToolPermissionContext(),
+      mode: initialMode,  // 默认为 'default'（需要确认）
+    },
+    // ...
+  }
+}
+</code></pre>
+<p>默认权限模式是 <code>'default'</code> —— 需要用户确认每个工具操作。用户必须显式选择 <code>'auto'</code> 模式才能跳过确认。</p>
+<h3 id="2423-bypass-权限的保护"><a class="header" href="#2423-bypass-权限的保护">24.2.3 Bypass 权限的保护</a></h3>
+<pre><code class="language-typescript">// src/state/AppState.tsx
+useEffect(() =&gt; {
+  const { toolPermissionContext } = store.getState()
+  if (toolPermissionContext.isBypassPermissionsModeAvailable
+      &amp;&amp; isBypassPermissionsModeDisabled()) {
+    logForDebugging("Disabling bypass permissions mode on mount")
+    store.setState(prev =&gt; ({
+      ...prev,
+      toolPermissionContext: createDisabledBypassPermissionsContext(
+        prev.toolPermissionContext
+      ),
+    }))
+  }
+}, [])
+</code></pre>
+<p>即使 bypass 模式在本地可用，远程设置（可能在挂载后才加载）仍可以禁用它。这是“失败关闭“在时序问题上的应用 —— 在安全信号到达前，保持最安全的状态。</p>
+<h3 id="2424-断路器也是失败关闭"><a class="header" href="#2424-断路器也是失败关闭">24.2.4 断路器也是失败关闭</a></h3>
+<pre><code class="language-typescript">// 连续失败 3 次后停止重试
+if (tracking?.consecutiveFailures &gt;= MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES) {
+  return { wasCompacted: false }
+}
+</code></pre>
+<p>压缩的断路器也遵循失败关闭 —— 当压缩反复失败时，停止尝试而非无限重试。“不做事“比“做错事“更安全。</p>
+<h2 id="243-generator-流水线--asyncgenerator-组合"><a class="header" href="#243-generator-流水线--asyncgenerator-组合">24.3 Generator 流水线 —— AsyncGenerator 组合</a></h2>
+<h3 id="2431-模式描述"><a class="header" href="#2431-模式描述">24.3.1 模式描述</a></h3>
+<p>Claude Code 的查询引擎使用 AsyncGenerator 模式处理流式响应。每个处理阶段是一个 generator，通过组合形成流水线。</p>
+<h3 id="2432-流式处理链"><a class="header" href="#2432-流式处理链">24.3.2 流式处理链</a></h3>
+<pre><code class="language-typescript">// 概念模型
+async function* queryModelWithStreaming(
+  messages: Message[],
+  systemPrompt: string,
+  tools: Tool[],
+): AsyncGenerator&lt;StreamEvent&gt; {
+  const stream = await api.messages.stream(/* ... */)
+
+  for await (const event of stream) {
+    // 每个事件被逐一 yield
+    yield transformEvent(event)
+  }
+}
+
+// REPL 消费流
+for await (const event of queryModelWithStreaming(messages, system, tools)) {
+  if (event.type === 'content_block_delta') {
+    // 增量更新 UI
+    updateMessages(event)
+  } else if (event.type === 'tool_use') {
+    // 触发工具调用
+    yield* handleToolUse(event)  // yield* 委托到子 generator
+  }
+}
+</code></pre>
+<h3 id="2433-流水线优势"><a class="header" href="#2433-流水线优势">24.3.3 流水线优势</a></h3>
+<pre><code class="language-mermaid">graph LR
+    API[API Stream] --&gt; |event| Transform[Transform&lt;br/&gt;事件转换]
+    Transform --&gt; |event| Filter[Filter&lt;br/&gt;过滤噪音]
+    Filter --&gt; |event| Accumulate[Accumulate&lt;br/&gt;累积内容块]
+    Accumulate --&gt; |message| ToolDispatch[ToolDispatch&lt;br/&gt;工具调度]
+    ToolDispatch --&gt; |result| UI[UI Update&lt;br/&gt;界面更新]
+</code></pre>
+<p>AsyncGenerator 组合的优势在于：</p>
+<ol>
+<li><strong>背压</strong> —— 下游处理慢时自动暂停上游</li>
+<li><strong>懒求值</strong> —— 只在需要时拉取下一个事件</li>
+<li><strong>取消</strong> —— 可以随时终止流水线（用户按 Escape）</li>
+<li><strong>组合性</strong> —— 每个阶段独立可测试</li>
+</ol>
+<h2 id="244-观察者模式--hook-系统"><a class="header" href="#244-观察者模式--hook-系统">24.4 观察者模式 —— Hook 系统</a></h2>
+<h3 id="2441-模式描述"><a class="header" href="#2441-模式描述">24.4.1 模式描述</a></h3>
+<p>Claude Code 的 Hook 系统是观察者模式的一种变体。Hook 允许用户在关键事件（会话开始、压缩前后、工具调用前后）注入自定义逻辑。</p>
+<h3 id="2442-会话钩子"><a class="header" href="#2442-会话钩子">24.4.2 会话钩子</a></h3>
+<pre><code class="language-typescript">// Hook 类型
+export type SessionHooksState = Map&lt;string, HookState&gt;
+
+// Hook 执行点
+import { processSessionStartHooks } from '../utils/sessionStart.js'
+import { executeSessionEndHooks } from '../utils/hooks.js'
+import { executePreCompactHooks, executePostCompactHooks } from '../utils/hooks.js'
+</code></pre>
+<h3 id="2443-onchange-作为观察者"><a class="header" href="#2443-onchange-作为观察者">24.4.3 onChange 作为观察者</a></h3>
+<p>Store 的 <code>onChange</code> 回调也是一种观察者实现：</p>
+<pre><code class="language-typescript">const store = createStore(initialState, onChangeAppState)
+
+// onChangeAppState 观察所有状态变化
+function onChangeAppState({ newState, oldState }) {
+  // 权限模式变化 → 通知 CCR
+  // 模型变化 → 更新 settings
+  // 详细模式变化 → 更新 globalConfig
+  // 设置变化 → 清除认证缓存
+}
+</code></pre>
+<h2 id="245-策略模式--权限分类器"><a class="header" href="#245-策略模式--权限分类器">24.5 策略模式 —— 权限分类器</a></h2>
+<h3 id="2451-模式描述"><a class="header" href="#2451-模式描述">24.5.1 模式描述</a></h3>
+<p>权限分类器使用策略模式 —— 根据当前权限模式选择不同的决策策略。</p>
+<h3 id="2452-权限模式策略"><a class="header" href="#2452-权限模式策略">24.5.2 权限模式策略</a></h3>
+<pre><code class="language-mermaid">graph TD
+    Request[工具调用请求] --&gt; Mode{权限模式?}
+    Mode --&gt;|default| DefaultStrategy[Default 策略&lt;br/&gt;检查允许列表&lt;br/&gt;否则需要确认]
+    Mode --&gt;|plan| PlanStrategy[Plan 策略&lt;br/&gt;仅规划不执行&lt;br/&gt;全部拒绝]
+    Mode --&gt;|auto| AutoStrategy[Auto 策略&lt;br/&gt;分类器自动决策&lt;br/&gt;高风险仍需确认]
+
+    DefaultStrategy --&gt; |需要确认| UI[显示权限对话框]
+    DefaultStrategy --&gt; |已授权| Execute[执行]
+    PlanStrategy --&gt; Reject[拒绝执行]
+    AutoStrategy --&gt; |低风险| Execute
+    AutoStrategy --&gt; |高风险| UI
+</code></pre>
+<h3 id="2453-可扩展性"><a class="header" href="#2453-可扩展性">24.5.3 可扩展性</a></h3>
+<p>新的权限模式可以通过添加新的策略实现来扩展，无需修改现有代码。<code>PermissionMode</code> 联合类型确保了所有策略都被穷尽处理：</p>
+<pre><code class="language-typescript">export type PermissionMode =
+  | 'default'
+  | 'plan'
+  | 'auto'
+  | 'bubble'
+  | 'ungated_auto'
+  // ...
+</code></pre>
+<h2 id="246-工厂模式--buildtool-createstore"><a class="header" href="#246-工厂模式--buildtool-createstore">24.6 工厂模式 —— buildTool, createStore</a></h2>
+<h3 id="2461-store-工厂"><a class="header" href="#2461-store-工厂">24.6.1 Store 工厂</a></h3>
+<p><code>createStore</code> 是最纯粹的工厂函数 —— 接收配置（初始状态、onChange），返回一个完整的 Store 实例：</p>
+<pre><code class="language-typescript">export function createStore&lt;T&gt;(
+  initialState: T,
+  onChange?: OnChange&lt;T&gt;,
+): Store&lt;T&gt; {
+  let state = initialState
+  const listeners = new Set&lt;Listener&gt;()
+  return { getState, setState, subscribe }
+}
+</code></pre>
+<h3 id="2462-缓存工厂"><a class="header" href="#2462-缓存工厂">24.6.2 缓存工厂</a></h3>
+<pre><code class="language-typescript">export function createFileStateCacheWithSizeLimit(
+  maxEntries: number,
+  maxSizeBytes: number = DEFAULT_MAX_CACHE_SIZE_BYTES,
+): FileStateCache {
+  return new FileStateCache(maxEntries, maxSizeBytes)
+}
+</code></pre>
+<h3 id="2463-默认状态工厂"><a class="header" href="#2463-默认状态工厂">24.6.3 默认状态工厂</a></h3>
+<pre><code class="language-typescript">export function getDefaultAppState(): AppState {
+  // 60+ 个字段的默认值构建
+  return { ... }
+}
+</code></pre>
+<p>工厂模式在 Claude Code 中的应用特点是：<strong>工厂函数通常是纯函数</strong>（或接近纯函数），不依赖全局状态。这使得它们在测试中特别容易使用 —— 每次调用都产生一个独立的实例。</p>
+<h3 id="2464-compactionresult-构建器"><a class="header" href="#2464-compactionresult-构建器">24.6.4 CompactionResult 构建器</a></h3>
+<pre><code class="language-typescript">export function buildPostCompactMessages(result: CompactionResult): Message[] {
+  return [
+    result.boundaryMarker,
+    ...result.summaryMessages,
+    ...(result.messagesToKeep ?? []),
+    ...result.attachments,
+    ...result.hookResults,
+  ]
+}
+</code></pre>
+<p>这是一个构建器（Builder）变体 —— 从结构化的中间表示构建最终的消息列表。顺序封装在函数内部，调用者无需了解消息组装规则。</p>
+<h2 id="247-双通道模式--隔离与共享的平衡"><a class="header" href="#247-双通道模式--隔离与共享的平衡">24.7 双通道模式 —— 隔离与共享的平衡</a></h2>
+<h3 id="2471-模式描述"><a class="header" href="#2471-模式描述">24.7.1 模式描述</a></h3>
+<p>当一个子系统需要同时支持“默认隔离“和“显式共享“两种语义时，Claude Code 使用双通道设计。最典型的例子是 <code>ToolUseContext</code> 中的 <code>setAppState</code> 与 <code>setAppStateForTasks</code>（参见第 7 章 §7.3.3）。</p>
+<h3 id="2472-隔离通道-vs-共享通道"><a class="header" href="#2472-隔离通道-vs-共享通道">24.7.2 隔离通道 vs 共享通道</a></h3>
+<pre><code class="language-mermaid">graph TD
+    Parent[父 Agent] --&gt; |setAppState| ParentStore[父 Store]
+    Parent --&gt; |setAppStateForTasks| RootStore[根 Store]
+
+    SubAgent[子 Agent] --&gt; |setAppState| NoOp["no-op&lt;br/&gt;(隔离：不影响父)"]
+    SubAgent --&gt; |setAppStateForTasks| RootStore
+
+    SubAgent2[孙 Agent] --&gt; |setAppState| NoOp2["no-op&lt;br/&gt;(隔离)"]
+    SubAgent2 --&gt; |setAppStateForTasks| RootStore
+
+    style NoOp fill:#fdd
+    style NoOp2 fill:#fdd
+    style RootStore fill:#dfd
+</code></pre>
+<ul>
+<li><strong>隔离通道</strong>（<code>setAppState</code>）：子 Agent 的状态修改不泄漏到父 Agent，防止多层嵌套 Agent 之间的状态污染</li>
+<li><strong>共享通道</strong>（<code>setAppStateForTasks</code>）：穿透到根 Store，用于全局基础设施（后台任务注册、会话钩子）</li>
+</ul>
+<h3 id="2473-模式应用矩阵"><a class="header" href="#2473-模式应用矩阵">24.7.3 模式应用矩阵</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>场景</th><th>通道</th><th>原因</th></tr>
+</thead>
+<tbody>
+<tr><td>普通状态更新</td><td>隔离</td><td>防止子 Agent 副作用泄漏</td></tr>
+<tr><td>后台任务注册</td><td>共享</td><td>任务需要在 Agent 结束后存活</td></tr>
+<tr><td>会话钩子</td><td>共享</td><td>钩子是全局基础设施</td></tr>
+<tr><td>文件缓存</td><td>隔离</td><td>每个 Agent 独立缓存，避免缓存膨胀</td></tr>
+<tr><td>权限追踪</td><td>隔离</td><td>拒绝计数不应跨 Agent 累计</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="248-编译时多态--feature-宏"><a class="header" href="#248-编译时多态--feature-宏">24.8 编译时多态 —— feature() 宏</a></h2>
+<h3 id="2481-模式描述"><a class="header" href="#2481-模式描述">24.8.1 模式描述</a></h3>
+<p>传统的策略模式在运行时通过接口和多态实现分支。Claude Code 使用 <code>feature()</code> 宏实现<strong>编译时多态</strong> —— 不同构建配置产生不同的代码，运行时无分支开销。</p>
+<h3 id="2482-与运行时策略的对比"><a class="header" href="#2482-与运行时策略的对比">24.8.2 与运行时策略的对比</a></h3>
+<pre><code class="language-typescript">// 运行时策略（传统方式）
+function getVoiceProvider() {
+  if (config.voiceEnabled) {        // 运行时检查
+    return new VoiceProvider()       // 代码始终在包中
+  }
+  return new NoopProvider()
+}
+
+// 编译时多态（Claude Code 方式）
+const VoiceProvider = feature('VOICE_MODE')
+  ? require('../context/voice.js').VoiceProvider   // 内部构建：包含
+  : ({ children }) =&gt; children                      // 外部构建：DCE 移除 voice.js
+</code></pre>
+<p>编译时多态的优势：</p>
+<ol>
+<li><strong>零运行时开销</strong> —— 无条件分支</li>
+<li><strong>安全保证</strong> —— 内部代码物理上不存在于外部产物中</li>
+<li><strong>包大小优化</strong> —— 未启用的模块及其依赖树被完全移除</li>
+</ol>
+<h3 id="2483-已知的-feature-flag-清单"><a class="header" href="#2483-已知的-feature-flag-清单">24.8.3 已知的 Feature Flag 清单</a></h3>
+<p>从源码中提取的完整 feature flag 列表：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Feature Flag</th><th>功能</th><th>外部构建</th></tr>
+</thead>
+<tbody>
+<tr><td><code>VOICE_MODE</code></td><td>语音输入</td><td>移除</td></tr>
+<tr><td><code>COORDINATOR_MODE</code></td><td>多 Agent 协调器</td><td>移除</td></tr>
+<tr><td><code>PROACTIVE</code></td><td>后台主动 Agent</td><td>移除</td></tr>
+<tr><td><code>KAIROS</code></td><td>助手/通道模式</td><td>移除</td></tr>
+<tr><td><code>FORK_SUBAGENT</code></td><td>Fork 子 Agent</td><td>移除</td></tr>
+<tr><td><code>TRANSCRIPT_CLASSIFIER</code></td><td>自动权限模式</td><td>移除</td></tr>
+<tr><td><code>BASH_CLASSIFIER</code></td><td>Bash 命令分类器</td><td>移除</td></tr>
+<tr><td><code>HISTORY_SNIP</code></td><td>上下文片段压缩</td><td>移除</td></tr>
+<tr><td><code>VERIFICATION_AGENT</code></td><td>验证 Agent</td><td>移除</td></tr>
+<tr><td><code>BRIDGE_MODE</code></td><td>IDE 桥接</td><td>移除</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="249-反模式警示"><a class="header" href="#249-反模式警示">24.9 反模式警示</a></h2>
+<h3 id="2471-巨型组件"><a class="header" href="#2471-巨型组件">24.7.1 巨型组件</a></h3>
+<p>REPL.tsx 的 5000 行是一个需要关注的信号。虽然 React Compiler 的自动 memoization 缓解了性能问题，但维护性仍然是挑战。团队通过将逻辑提取到 hooks（<code>useTasksV2WithCollapseEffect</code>、<code>useReplBridge</code> 等）来逐步减小主组件的体积。</p>
+<h3 id="2472-全局可变状态"><a class="header" href="#2472-全局可变状态">24.7.2 全局可变状态</a></h3>
+<p><code>src/bootstrap/state.ts</code> 文件头的警告说明了团队的态度：</p>
+<pre><code class="language-typescript">// DO NOT ADD MORE STATE HERE - BE JUDICIOUS WITH GLOBAL STATE
+</code></pre>
+<p>全局状态虽然方便，但增加了不可见的耦合。团队正在将状态逐步迁移到 AppState Store 中，通过 <code>onChange</code> 机制统一管理副作用。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>Claude Code 的设计模式展现了一种实用主义的工程审美。ToolUseContext 的显式依赖注入避免了框架的复杂性，<code>feature()</code> 宏的策略模式实现了编译时多态，AsyncGenerator 流水线为流式处理提供了优雅的抽象。</p>
+<p>最值得注意的是“失败关闭“原则的无处不在 —— 从默认权限模式到断路器，从 bypass 权限的动态禁用到 identity guard 的并发保护。在一个运行着实际代码的 AI Agent 中，安全不是可选项，而是设计的起点。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part9-engineering/ch23-build-system.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part10-philosophy/ch25-philosophy.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part9-engineering/ch23-build-system.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part10-philosophy/ch25-philosophy.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

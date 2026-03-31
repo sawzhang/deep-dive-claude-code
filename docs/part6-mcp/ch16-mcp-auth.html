@@ -1,0 +1,756 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 16 章：MCP 认证体系 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part6-mcp/ch16-mcp-auth.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-16-章mcp-认证体系"><a class="header" href="#第-16-章mcp-认证体系">第 16 章：MCP 认证体系</a></h1>
+<p>远程 MCP 服务器需要认证机制来保护其暴露的工具和资源。Claude Code 实现了一个完整的 OAuth 2.0 认证体系，支持从基本的授权码流到企业级的跨账户访问（XAA）。本章将深入 <code>src/services/mcp/auth.ts</code> 和 <code>xaa.ts</code>，剖析这一认证体系的每个层面。</p>
+<h2 id="161-oauth-授权流"><a class="header" href="#161-oauth-授权流">16.1 OAuth 授权流</a></h2>
+<h3 id="1611-claudeauthprovider-架构"><a class="header" href="#1611-claudeauthprovider-架构">16.1.1 ClaudeAuthProvider 架构</a></h3>
+<p><code>ClaudeAuthProvider</code> 是 MCP SDK 的 <code>OAuthClientProvider</code> 接口的完整实现，它管理了一个 MCP 服务器连接的完整 OAuth 生命周期：</p>
+<pre><code class="language-typescript">// src/services/mcp/auth.ts
+export class ClaudeAuthProvider implements OAuthClientProvider {
+  private serverName: string
+  private serverConfig: McpSSEServerConfig | McpHTTPServerConfig
+  private redirectUri: string
+  private _codeVerifier?: string
+  private _authorizationUrl?: string
+  private _state?: string
+  private _scopes?: string
+  private _metadata?: Awaited&lt;ReturnType&lt;typeof discoverAuthorizationServerMetadata&gt;&gt;
+  private _refreshInProgress?: Promise&lt;OAuthTokens | undefined&gt;
+  private _pendingStepUpScope?: string
+
+  constructor(
+    serverName: string,
+    serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
+    redirectUri: string = buildRedirectUri(),
+    handleRedirection = false,
+    onAuthorizationUrl?: (url: string) =&gt; void,
+    skipBrowserOpen?: boolean,
+  ) {
+    this.serverName = serverName
+    this.serverConfig = serverConfig
+    this.redirectUri = redirectUri
+    this.handleRedirection = handleRedirection
+    this.onAuthorizationUrlCallback = onAuthorizationUrl
+    this.skipBrowserOpen = skipBrowserOpen ?? false
+  }
+</code></pre>
+<p>设计要点：</p>
+<ol>
+<li><code>_refreshInProgress</code> 使用 Promise 作为锁——当一个 token 刷新正在进行时，并发请求等待同一个 Promise 而不是各自发起刷新</li>
+<li><code>_pendingStepUpScope</code> 支持 OAuth Step-Up 认证——当服务器要求更高权限（scope elevation）时，标记待提升的 scope</li>
+</ol>
+<h3 id="1612-客户端元数据与-cimd"><a class="header" href="#1612-客户端元数据与-cimd">16.1.2 客户端元数据与 CIMD</a></h3>
+<pre><code class="language-typescript">get clientMetadata(): OAuthClientMetadata {
+  const metadata: OAuthClientMetadata = {
+    client_name: `Claude Code (${this.serverName})`,
+    redirect_uris: [this.redirectUri],
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none', // 公共客户端
+  }
+  const metadataScope = getScopeFromMetadata(this._metadata)
+  if (metadataScope) {
+    metadata.scope = metadataScope
+  }
+  return metadata
+}
+
+// CIMD (SEP-991): URL 形式的 client_id
+get clientMetadataUrl(): string | undefined {
+  const override = process.env.MCP_OAUTH_CLIENT_METADATA_URL
+  if (override) return override
+  return MCP_CLIENT_METADATA_URL
+}
+</code></pre>
+<p>Claude Code 使用 <code>token_endpoint_auth_method: 'none'</code> 声明自己为公共客户端（Public Client）——因为 CLI 工具无法安全地存储 client_secret。CIMD（Client ID Metadata Document，SEP-991）允许使用 URL 作为 client_id，这是 MCP 生态的一个重要创新。</p>
+<h3 id="1613-授权服务器发现"><a class="header" href="#1613-授权服务器发现">16.1.3 授权服务器发现</a></h3>
+<pre><code class="language-typescript">async function fetchAuthServerMetadata(
+  serverName: string,
+  serverUrl: string,
+  configuredMetadataUrl: string | undefined,
+  fetchFn?: FetchLike,
+  resourceMetadataUrl?: URL,
+): Promise&lt;...&gt; {
+  if (configuredMetadataUrl) {
+    // 用户配置的元数据 URL
+    if (!configuredMetadataUrl.startsWith('https://')) {
+      throw new Error(`authServerMetadataUrl must use https://`)
+    }
+    const authFetch = fetchFn ?? createAuthFetch()
+    const response = await authFetch(configuredMetadataUrl, { ... })
+    return OAuthMetadataSchema.parse(await response.json())
+  }
+
+  try {
+    // RFC 9728: Protected Resource Metadata → 发现授权服务器
+    const { authorizationServerMetadata } = await discoverOAuthServerInfo(serverUrl, {
+      ...(fetchFn &amp;&amp; { fetchFn }),
+      ...(resourceMetadataUrl &amp;&amp; { resourceMetadataUrl }),
+    })
+    if (authorizationServerMetadata) return authorizationServerMetadata
+  } catch (err) {
+    logMCPDebug(serverName, `RFC 9728 discovery failed, falling back: ${errorMessage(err)}`)
+  }
+
+  // 回退: RFC 8414 路径感知发现
+  const url = new URL(serverUrl)
+  if (url.pathname === '/') return undefined
+  return discoverAuthorizationServerMetadata(url, { ...(fetchFn &amp;&amp; { fetchFn }) })
+}
+</code></pre>
+<p>发现流程遵循三步回退策略：</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[开始发现] --&gt; B{配置了 metadataUrl?}
+    B --&gt;|是| C[直接获取配置 URL]
+    C --&gt;|成功| D[返回元数据]
+    C --&gt;|失败| E[抛出错误]
+    B --&gt;|否| F[RFC 9728 PRM 发现]
+    F --&gt;|成功| G[通过 PRM 找到 AS]
+    G --&gt; D
+    F --&gt;|失败| H{URL 有路径?}
+    H --&gt;|是| I[RFC 8414 路径感知回退]
+    I --&gt;|成功| D
+    I --&gt;|失败| J[返回 undefined]
+    H --&gt;|否| J
+</code></pre>
+<h3 id="1614-本地回调服务器"><a class="header" href="#1614-本地回调服务器">16.1.4 本地回调服务器</a></h3>
+<p>OAuth 授权码流需要一个本地 HTTP 服务器来接收回调：</p>
+<pre><code class="language-typescript">// src/services/mcp/oauthPort.ts
+export function buildRedirectUri(port?: number): string {
+  return `http://127.0.0.1:${port || findAvailablePort()}/callback`
+}
+</code></pre>
+<p>回调服务器在 <code>127.0.0.1</code> 上监听，接收授权码并用它交换 access token。端口号动态分配以避免冲突。</p>
+<h3 id="1615-oauth-错误规范化"><a class="header" href="#1615-oauth-错误规范化">16.1.5 OAuth 错误规范化</a></h3>
+<p>某些 OAuth 服务器（特别是 Slack）不遵守标准的错误响应格式：</p>
+<pre><code class="language-typescript">// src/services/mcp/auth.ts
+const NONSTANDARD_INVALID_GRANT_ALIASES = new Set([
+  'invalid_refresh_token',
+  'expired_refresh_token',
+  'token_expired',
+])
+
+export async function normalizeOAuthErrorBody(response: Response): Promise&lt;Response&gt; {
+  if (!response.ok) return response
+  const text = await response.text()
+  let parsed: unknown
+  try { parsed = jsonParse(text) } catch { return new Response(text, response) }
+
+  // 如果是有效的 token 响应，直接返回
+  if (OAuthTokensSchema.safeParse(parsed).success) {
+    return new Response(text, response)
+  }
+
+  // 检查是否是错误响应包装在 200 中
+  const result = OAuthErrorResponseSchema.safeParse(parsed)
+  if (!result.success) return new Response(text, response)
+
+  // 规范化非标准错误码
+  const normalized = NONSTANDARD_INVALID_GRANT_ALIASES.has(result.data.error)
+    ? { error: 'invalid_grant', error_description: `...` }
+    : result.data
+
+  return new Response(jsonStringify(normalized), {
+    status: 400, statusText: 'Bad Request',
+    headers: response.headers,
+  })
+}
+</code></pre>
+<p>Slack 等服务器返回 HTTP 200 + <code>{"error":"invalid_refresh_token"}</code>，而 RFC 6749 规定应该返回 HTTP 400 + <code>{"error":"invalid_grant"}</code>。这个规范化层将非标准响应转换为标准格式，确保 SDK 的错误处理逻辑正确工作。</p>
+<h2 id="162-token-管理"><a class="header" href="#162-token-管理">16.2 Token 管理</a></h2>
+<h3 id="1621-安全存储"><a class="header" href="#1621-安全存储">16.2.1 安全存储</a></h3>
+<p>Token 通过 <code>SecureStorage</code> 接口存储，在 macOS 上使用系统 Keychain：</p>
+<pre><code class="language-typescript">async tokens(): Promise&lt;OAuthTokens | undefined&gt; {
+  const storage = getSecureStorage()
+  const data = await storage.readAsync()
+  const serverKey = getServerKey(this.serverName, this.serverConfig)
+  const tokenData = data?.mcpOAuth?.[serverKey]
+  // ...
+}
+</code></pre>
+<p>存储 key 是服务器名称和配置哈希的组合，防止同名不同配置的服务器共享凭据：</p>
+<pre><code class="language-typescript">export function getServerKey(
+  serverName: string,
+  serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
+): string {
+  const configJson = jsonStringify({
+    type: serverConfig.type,
+    url: serverConfig.url,
+    headers: serverConfig.headers || {},
+  })
+  const hash = createHash('sha256').update(configJson).digest('hex').substring(0, 16)
+  return `${serverName}|${hash}`
+}
+</code></pre>
+<h3 id="1622-token-刷新"><a class="header" href="#1622-token-刷新">16.2.2 Token 刷新</a></h3>
+<p>Token 刷新有多层保护机制：</p>
+<ol>
+<li><strong>锁文件</strong>：使用文件锁防止多个 Claude Code 实例同时刷新</li>
+<li><strong>重试策略</strong>：区分瞬时错误（重试）和永久错误（失效）</li>
+<li><strong>跨进程感知</strong>：Keychain 缓存的 TTL 允许一个实例看到另一个实例的刷新结果</li>
+</ol>
+<pre><code class="language-typescript">// tokens() 方法中的性能注释
+// 我们不在这里 clearKeychainCache()——tokens() 被 MCP SDK 的
+// _commonHeaders 在每次请求中调用，强制 cache miss 会触发
+// 30-40 次/秒的阻塞 spawnSync(`security find-generic-password`)
+</code></pre>
+<p>这条注释揭示了一个重要的性能考量：<code>tokens()</code> 在每次 MCP 请求中都被调用，如果每次都读取 Keychain 会导致严重的 CPU 消耗（在 CPU profile 中占到 7.2%）。</p>
+<h3 id="1623-token-撤销"><a class="header" href="#1623-token-撤销">16.2.3 Token 撤销</a></h3>
+<pre><code class="language-typescript">export async function revokeServerTokens(
+  serverName: string,
+  serverConfig: McpSSEServerConfig | McpHTTPServerConfig,
+  { preserveStepUpState = false } = {},
+): Promise&lt;void&gt; {
+  // 1. 发现撤销端点
+  const metadata = await fetchAuthServerMetadata(serverName, asUrl, ...)
+
+  // 2. 先撤销 refresh_token（更重要——防止生成新的 access_token）
+  if (tokenData.refreshToken) {
+    await revokeToken({ ..., tokenTypeHint: 'refresh_token' })
+  }
+
+  // 3. 再撤销 access_token
+  if (tokenData.accessToken) {
+    await revokeToken({ ..., tokenTypeHint: 'access_token' })
+  }
+
+  // 4. 清除本地存储
+  clearServerTokensFromLocalStorage(serverName, serverConfig)
+
+  // 5. 可选保留 Step-Up 状态
+  if (preserveStepUpState &amp;&amp; tokenData.stepUpScope) {
+    // 保留 scope 和 discovery 状态，方便下次认证
+  }
+}
+</code></pre>
+<p>撤销顺序很重要：先撤销 refresh_token，因为它是长期凭证。即使 access_token 撤销失败，只要 refresh_token 被撤销就无法生成新的 access_token。</p>
+<p>RFC 7009 的两种认证方式都被支持：</p>
+<pre><code class="language-typescript">async function revokeToken({ endpoint, token, tokenTypeHint, clientId, clientSecret, ... }) {
+  // 优先使用 client_secret_basic（RFC 7009 标准）
+  if (clientId &amp;&amp; clientSecret) {
+    if (authMethod === 'client_secret_post') {
+      params.set('client_id', clientId)
+      params.set('client_secret', clientSecret)
+    } else {
+      const basic = Buffer.from(`${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`).toString('base64')
+      headers.Authorization = `Basic ${basic}`
+    }
+  }
+
+  try {
+    await axios.post(endpoint, params, { headers })
+  } catch (error) {
+    // 回退：某些非 RFC 7009 兼容的服务器需要 Bearer auth
+    if (error.response?.status === 401 &amp;&amp; accessToken) {
+      params.delete('client_id')
+      params.delete('client_secret')
+      await axios.post(endpoint, params, {
+        headers: { ...headers, Authorization: `Bearer ${accessToken}` },
+      })
+    }
+  }
+}
+</code></pre>
+<h2 id="163-xaa-跨账户访问"><a class="header" href="#163-xaa-跨账户访问">16.3 XAA 跨账户访问</a></h2>
+<p>Cross-App Access（XAA）是 MCP 认证体系中最精密的部分，它允许在不弹出浏览器的情况下获取 MCP 访问令牌。</p>
+<h3 id="1631-xaa-协议链"><a class="header" href="#1631-xaa-协议链">16.3.1 XAA 协议链</a></h3>
+<p>XAA 基于三个 RFC 标准构建了一条 token 交换链：</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant CC as Claude Code
+    participant IdP as 身份提供商 (IdP)
+    participant AS as 授权服务器 (AS)
+    participant MCP as MCP Server
+
+    Note over CC: 步骤 0: 缓存检查
+    CC-&gt;&gt;CC: 检查缓存的 id_token
+
+    Note over CC,IdP: 步骤 1: 获取 id_token (仅首次)
+    CC-&gt;&gt;IdP: OIDC 授权码流 (PKCE)
+    IdP--&gt;&gt;CC: id_token (缓存到 Keychain)
+
+    Note over CC,MCP: 步骤 2: PRM 发现
+    CC-&gt;&gt;MCP: RFC 9728 PRM 发现
+    MCP--&gt;&gt;CC: resource, authorization_servers[]
+
+    Note over CC,AS: 步骤 3: AS 元数据发现
+    CC-&gt;&gt;AS: RFC 8414 AS 元数据
+    AS--&gt;&gt;CC: issuer, token_endpoint, grant_types
+
+    Note over CC,IdP: 步骤 4: Token Exchange (RFC 8693)
+    CC-&gt;&gt;IdP: id_token → ID-JAG
+    IdP--&gt;&gt;CC: ID-JAG (Identity Assertion Authorization Grant)
+
+    Note over CC,AS: 步骤 5: JWT Bearer Grant (RFC 7523)
+    CC-&gt;&gt;AS: ID-JAG → access_token
+    AS--&gt;&gt;CC: access_token + refresh_token
+</code></pre>
+<h3 id="1632-xaa-核心实现"><a class="header" href="#1632-xaa-核心实现">16.3.2 XAA 核心实现</a></h3>
+<pre><code class="language-typescript">// src/services/mcp/xaa.ts
+export async function performCrossAppAccess(
+  serverUrl: string,
+  config: XaaConfig,
+  serverName = 'xaa',
+  abortSignal?: AbortSignal,
+): Promise&lt;XaaResult&gt; {
+  const fetchFn = makeXaaFetch(abortSignal)
+
+  // Layer 2: PRM 发现
+  const prm = await discoverProtectedResource(serverUrl, { fetchFn })
+
+  // Layer 2: AS 发现（遍历所有广告的 AS，找到支持 jwt-bearer 的）
+  let asMeta: AuthorizationServerMetadata | undefined
+  for (const asUrl of prm.authorization_servers) {
+    let candidate = await discoverAuthorizationServer(asUrl, { fetchFn })
+    if (candidate.grant_types_supported &amp;&amp;
+        !candidate.grant_types_supported.includes(JWT_BEARER_GRANT)) {
+      continue
+    }
+    asMeta = candidate
+    break
+  }
+  if (!asMeta) throw new Error('XAA: no authorization server supports jwt-bearer')
+
+  // 选择认证方法
+  const authMethods = asMeta.token_endpoint_auth_methods_supported
+  const authMethod = authMethods &amp;&amp;
+    !authMethods.includes('client_secret_basic') &amp;&amp;
+    authMethods.includes('client_secret_post')
+      ? 'client_secret_post' : 'client_secret_basic'
+
+  // Layer 2: Token Exchange (id_token → ID-JAG)
+  const jag = await requestJwtAuthorizationGrant({
+    tokenEndpoint: config.idpTokenEndpoint,
+    audience: asMeta.issuer,
+    resource: prm.resource,
+    idToken: config.idpIdToken,
+    clientId: config.idpClientId,
+    clientSecret: config.idpClientSecret,
+    fetchFn,
+  })
+
+  // Layer 2: JWT Bearer Grant (ID-JAG → access_token)
+  const tokens = await exchangeJwtAuthGrant({
+    tokenEndpoint: asMeta.token_endpoint,
+    assertion: jag.jwtAuthGrant,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    authMethod,
+    fetchFn,
+  })
+
+  return { ...tokens, authorizationServerUrl: asMeta.issuer }
+}
+</code></pre>
+<h3 id="1633-安全验证"><a class="header" href="#1633-安全验证">16.3.3 安全验证</a></h3>
+<p>XAA 实现了多层安全验证：</p>
+<p><strong>RFC 9728 资源不匹配保护</strong>：</p>
+<pre><code class="language-typescript">export async function discoverProtectedResource(serverUrl: string, opts?): Promise&lt;...&gt; {
+  const prm = await discoverOAuthProtectedResourceMetadata(serverUrl, ...)
+  if (normalizeUrl(prm.resource) !== normalizeUrl(serverUrl)) {
+    throw new Error(`XAA: PRM resource mismatch: expected ${serverUrl}, got ${prm.resource}`)
+  }
+  return { resource: prm.resource, authorization_servers: prm.authorization_servers }
+}
+</code></pre>
+<p><strong>RFC 8414 发行者不匹配保护</strong>：</p>
+<pre><code class="language-typescript">export async function discoverAuthorizationServer(asUrl: string, opts?): Promise&lt;...&gt; {
+  if (normalizeUrl(meta.issuer) !== normalizeUrl(asUrl)) {
+    throw new Error(`XAA: issuer mismatch: expected ${asUrl}, got ${meta.issuer}`)
+  }
+  // HTTPS 强制
+  if (new URL(meta.token_endpoint).protocol !== 'https:') {
+    throw new Error(`XAA: refusing non-HTTPS token endpoint: ${meta.token_endpoint}`)
+  }
+}
+</code></pre>
+<p><strong>Token 泄露防护</strong>：</p>
+<pre><code class="language-typescript">const SENSITIVE_TOKEN_RE =
+  /"(access_token|refresh_token|id_token|assertion|subject_token|client_secret)"\s*:\s*"[^"]*"/g
+
+function redactTokens(raw: unknown): string {
+  const s = typeof raw === 'string' ? raw : jsonStringify(raw)
+  return s.replace(SENSITIVE_TOKEN_RE, (_, k) =&gt; `"${k}":"[REDACTED]"`)
+}
+</code></pre>
+<p>所有包含 token 的日志输出都经过 <code>redactTokens</code> 处理，确保调试日志不会泄露敏感凭据。正则表达式匹配六种 token 相关字段，无论 JSON 嵌套深度如何。</p>
+<h3 id="1634-错误分类与-id_token-缓存策略"><a class="header" href="#1634-错误分类与-id_token-缓存策略">16.3.4 错误分类与 id_token 缓存策略</a></h3>
+<p><code>XaaTokenExchangeError</code> 携带了是否应该清除缓存 id_token 的信息：</p>
+<pre><code class="language-typescript">export class XaaTokenExchangeError extends Error {
+  readonly shouldClearIdToken: boolean
+  constructor(message: string, shouldClearIdToken: boolean) {
+    super(message)
+    this.name = 'XaaTokenExchangeError'
+    this.shouldClearIdToken = shouldClearIdToken
+  }
+}
+</code></pre>
+<ul>
+<li><strong>4xx 错误</strong>（invalid_grant 等）：id_token 被拒绝，清除缓存</li>
+<li><strong>5xx 错误</strong>：IdP 暂时不可用，id_token 可能仍有效，保留缓存</li>
+<li><strong>200 但格式错误</strong>：协议违规，清除缓存</li>
+</ul>
+<h2 id="164-idp-集成"><a class="header" href="#164-idp-集成">16.4 IdP 集成</a></h2>
+<p><code>xaaIdpLogin.ts</code> 管理与身份提供商（Identity Provider）的集成。</p>
+<h3 id="1641-oidc-发现"><a class="header" href="#1641-oidc-发现">16.4.1 OIDC 发现</a></h3>
+<pre><code class="language-typescript">// src/services/mcp/xaaIdpLogin.ts
+export async function discoverOidc(issuer: string): Promise&lt;OidcDiscovery&gt; {
+  // 标准 OIDC 发现：/.well-known/openid-configuration
+  // 返回 authorization_endpoint, token_endpoint 等
+}
+</code></pre>
+<h3 id="1642-id_token-生命周期"><a class="header" href="#1642-id_token-生命周期">16.4.2 id_token 生命周期</a></h3>
+<p>id_token 的获取和缓存遵循以下流程：</p>
+<ol>
+<li>首次使用时通过 OIDC 授权码流（带 PKCE）获取 id_token</li>
+<li>id_token 缓存到系统 Keychain，按 IdP issuer 键控</li>
+<li>后续的 XAA 请求直接使用缓存的 id_token</li>
+<li>如果 id_token 过期或被拒绝，重新发起 OIDC 流程</li>
+</ol>
+<p>这个设计的关键优势是<strong>一次浏览器登录即可访问所有 XAA 配置的 MCP 服务器</strong>——id_token 是按 IdP 缓存的，而非按 MCP 服务器。</p>
+<h3 id="1643-xaa-配置"><a class="header" href="#1643-xaa-配置">16.4.3 XAA 配置</a></h3>
+<pre><code class="language-typescript">export type XaaConfig = {
+  clientId: string       // MCP 服务器 AS 的 client_id
+  clientSecret: string   // MCP 服务器 AS 的 client_secret
+  idpClientId: string    // IdP 的 client_id
+  idpClientSecret?: string // IdP 的 client_secret（可选）
+  idpIdToken: string     // 用户的 id_token
+  idpTokenEndpoint: string // IdP 的 token endpoint
+}
+</code></pre>
+<p>注意 IdP client_secret 是可选的——某些 IdP 将 Claude Code 注册为 Public Client，只需要 PKCE 而不需要 secret。</p>
+<h2 id="165-通道权限"><a class="header" href="#165-通道权限">16.5 通道权限</a></h2>
+<p><code>channelPermissions.ts</code> 实现了通过外部通道（如 Telegram）进行权限审批的机制。</p>
+<h3 id="1651-通道权限架构"><a class="header" href="#1651-通道权限架构">16.5.1 通道权限架构</a></h3>
+<pre><code class="language-typescript">// src/services/mcp/channelPermissions.ts
+export type ChannelPermissionCallbacks = {
+  onResponse(requestId: string, handler: (response: ChannelPermissionResponse) =&gt; void): () =&gt; void
+  resolve(requestId: string, behavior: 'allow' | 'deny', fromServer: string): boolean
+}
+</code></pre>
+<p>当 Claude Code 遇到权限请求时，它不仅显示本地 UI 对话框，还同时通过活跃的通道 MCP 服务器发送审批请求。第一个响应者（本地 UI 或远程通道）获胜。</p>
+<h3 id="1652-短-id-生成"><a class="header" href="#1652-短-id-生成">16.5.2 短 ID 生成</a></h3>
+<pre><code class="language-typescript">const ID_ALPHABET = 'abcdefghijkmnopqrstuvwxyz'  // 25 字母，无 'l'
+
+export function shortRequestId(toolUseID: string): string {
+  let candidate = hashToId(toolUseID)
+  for (let salt = 0; salt &lt; 10; salt++) {
+    if (!ID_AVOID_SUBSTRINGS.some(bad =&gt; candidate.includes(bad))) {
+      return candidate
+    }
+    candidate = hashToId(`${toolUseID}:${salt}`)
+  }
+  return candidate
+}
+</code></pre>
+<p>短 ID 的设计考虑周到：</p>
+<ul>
+<li>使用 25 个字母（排除了 <code>l</code>，因为它在很多字体中与 <code>1</code>/<code>I</code> 混淆）</li>
+<li>5 字母给出 25^5 = 9.8M 的空间，对单会话内的并发请求绰绰有余</li>
+<li>纯字母避免手机用户切换键盘模式</li>
+<li>脏词过滤确保 ID 可以安全地出现在手机短信中</li>
+</ul>
+<h3 id="1653-通道能力检查"><a class="header" href="#1653-通道能力检查">16.5.3 通道能力检查</a></h3>
+<pre><code class="language-typescript">export function filterPermissionRelayClients&lt;T extends {
+  type: string; name: string;
+  capabilities?: { experimental?: Record&lt;string, unknown&gt; }
+}&gt;(
+  clients: readonly T[],
+  isInAllowlist: (name: string) =&gt; boolean,
+): (T &amp; { type: 'connected' })[] {
+  return clients.filter(
+    (c): c is T &amp; { type: 'connected' } =&gt;
+      c.type === 'connected' &amp;&amp;
+      isInAllowlist(c.name) &amp;&amp;
+      c.capabilities?.experimental?.['claude/channel'] !== undefined &amp;&amp;
+      c.capabilities?.experimental?.['claude/channel/permission'] !== undefined,
+  )
+}
+</code></pre>
+<p>一个 MCP 服务器必须同时满足四个条件才能成为权限审批通道：</p>
+<ol>
+<li>已连接状态</li>
+<li>在会话的 <code>--channels</code> 允许列表中</li>
+<li>声明了 <code>claude/channel</code> 能力</li>
+<li>声明了 <code>claude/channel/permission</code> 能力</li>
+</ol>
+<p>第四个条件是服务器的<strong>显式 opt-in</strong>——一个聊天中继通道不会因为它能转发消息就自动成为权限审批表面。源码注释中引用了一位安全审查者的顾虑：“users may be unpleasantly surprised”，这个四重检查就是对此的回应。</p>
+<h3 id="1654-安全边界分析"><a class="header" href="#1654-安全边界分析">16.5.4 安全边界分析</a></h3>
+<p>源码注释中的安全分析值得完整引用：</p>
+<pre><code class="language-typescript">/**
+ * Kenneth's "would this let Claude self-approve?": the approving party is
+ * the human via the channel, not Claude. But the trust boundary isn't the
+ * terminal — it's the allowlist (tengu_harbor_ledger). A compromised
+ * channel server CAN fabricate "yes &lt;id&gt;" without the human seeing the
+ * prompt. Accepted risk: a compromised channel already has unlimited
+ * conversation-injection turns (social-engineer over time, wait for
+ * acceptEdits, etc.); inject-then-self-approve is faster, not more
+ * capable. The dialog slows a compromised channel; it doesn't stop one.
+ */
+</code></pre>
+<p>这段分析承认了一个已接受的风险：被入侵的通道服务器可以伪造审批。但它论证了这不会<strong>增加</strong>攻击者的能力——一个已入侵的通道已经可以注入任意对话内容，等待 acceptEdits 模式后执行任意操作。权限对话框增加了攻击的延迟，但不能阻止已经控制了通道的攻击者。</p>
+<p>通道权限的回复格式使用结构化事件而非文本匹配：</p>
+<pre><code class="language-typescript">// CC 生成 ID 并发送提示
+// 服务器解析用户回复 "yes tbxkq"
+// 服务器发送结构化事件：notifications/claude/channel/permission
+//   { request_id: "tbxkq", behavior: "allow" }
+// CC 匹配 pending map，不做文本正则匹配
+</code></pre>
+<p>CC 永远不对通道中的文本做正则匹配——只接受服务器发送的结构化事件。这确保了通道中的普通对话文本不会意外触发权限审批。</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[权限请求] --&gt; B{通道权限已启用?}
+    B --&gt;|否| C[仅本地 UI]
+    B --&gt;|是| D[过滤合格通道]
+    D --&gt; E{有合格通道?}
+    E --&gt;|否| C
+    E --&gt;|是| F[生成短 ID]
+    F --&gt; G[并行发送]
+    G --&gt; H[本地 UI 对话框]
+    G --&gt; I[通道审批请求]
+    H --&gt; J{竞赛: 谁先响应?}
+    I --&gt; J
+    J --&gt;|本地 UI| K[应用本地决策]
+    J --&gt;|通道| L[应用通道决策]
+    K --&gt; M[取消另一方]
+    L --&gt; M
+</code></pre>
+<p>整个 MCP 认证体系展现了对真实世界复杂性的深刻理解：OAuth 服务器的非标准行为、跨进程的 token 管理、企业级的 IdP 集成、移动通道的安全模型。每一层都在标准协议的基础上增加了防御性工程，确保在各种边界条件下仍能正确运作。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part6-mcp/ch15-mcp-protocol.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part7-state/ch17-state-management.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part6-mcp/ch15-mcp-protocol.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part7-state/ch17-state-management.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

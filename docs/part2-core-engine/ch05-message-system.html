@@ -1,0 +1,912 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 5 章：消息系统 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part2-core-engine/ch05-message-system.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-5-章消息系统"><a class="header" href="#第-5-章消息系统">第 5 章：消息系统</a></h1>
+<blockquote>
+<p>“在一个以对话为核心的系统中，消息类型的设计就是系统架构的缩影。”</p>
+</blockquote>
+<p>Claude Code 的消息系统远不止于“用户说了什么、助手回复了什么“的简单交替。它是一个精心分层的类型体系，涵盖了从流式事件到工具结果、从进度通知到墓碑标记的完整生命周期。本章将从类型定义出发，深入到工厂函数、序列化、持久化和 API 归一化的全过程。</p>
+<h2 id="51-消息类型层次"><a class="header" href="#51-消息类型层次">5.1 消息类型层次</a></h2>
+<h3 id="核心联合类型"><a class="header" href="#核心联合类型">核心联合类型</a></h3>
+<p>Claude Code 的消息系统建立在一个判别式联合类型（discriminated union）之上。从 <code>src/query.ts</code> 的导入可以看出完整的类型全貌：</p>
+<pre><code class="language-typescript">import type {
+  AssistantMessage,
+  AttachmentMessage,
+  Message,
+  RequestStartEvent,
+  StreamEvent,
+  ToolUseSummaryMessage,
+  UserMessage,
+  TombstoneMessage,
+} from './types/message.js'
+</code></pre>
+<p><code>Message</code> 是所有消息类型的联合：</p>
+<pre><code class="language-mermaid">classDiagram
+    class Message {
+        &lt;&lt;union&gt;&gt;
+    }
+
+    class UserMessage {
+        +type: "user"
+        +uuid: UUID
+        +timestamp: string
+        +message.role: "user"
+        +message.content: string | ContentBlockParam[]
+        +isMeta?: true
+        +isVirtual?: true
+        +isCompactSummary?: true
+        +toolUseResult?: unknown
+        +sourceToolAssistantUUID?: UUID
+        +permissionMode?: PermissionMode
+        +origin?: MessageOrigin
+        +imagePasteIds?: number[]
+    }
+
+    class AssistantMessage {
+        +type: "assistant"
+        +uuid: UUID
+        +timestamp: string
+        +message.role: "assistant"
+        +message.content: ContentBlock[]
+        +message.usage: Usage
+        +message.model: string
+        +message.stop_reason: string
+        +requestId?: string
+        +apiError?: string
+        +error?: SDKAssistantMessageError
+        +isApiErrorMessage: boolean
+        +isVirtual?: true
+        +advisorModel?: string
+    }
+
+    class SystemMessage {
+        +type: "system"
+        +subtype: string
+        +uuid: UUID
+        +timestamp: string
+        +content?: string
+    }
+
+    class ProgressMessage {
+        +type: "progress"
+        +uuid: UUID
+        +timestamp: string
+        +toolUseID: string
+        +parentToolUseID: string
+        +data: Progress
+    }
+
+    class AttachmentMessage {
+        +type: "attachment"
+        +uuid: UUID
+        +timestamp: string
+        +attachment: Attachment
+    }
+
+    class TombstoneMessage {
+        +type: "tombstone"
+        +message: AssistantMessage
+    }
+
+    class StreamEvent {
+        +type: "stream_event"
+        +event: MessageStreamEvent
+    }
+
+    class RequestStartEvent {
+        +type: "stream_request_start"
+    }
+
+    class ToolUseSummaryMessage {
+        +type: "tool_use_summary"
+        +uuid: UUID
+        +summary: string
+        +toolUseIds: string[]
+    }
+
+    Message &lt;|-- UserMessage
+    Message &lt;|-- AssistantMessage
+    Message &lt;|-- SystemMessage
+    Message &lt;|-- ProgressMessage
+    Message &lt;|-- AttachmentMessage
+
+    SystemMessage &lt;|-- SystemCompactBoundaryMessage
+    SystemMessage &lt;|-- SystemLocalCommandMessage
+    SystemMessage &lt;|-- SystemAPIErrorMessage
+    SystemMessage &lt;|-- SystemInformationalMessage
+    SystemMessage &lt;|-- SystemMicrocompactBoundaryMessage
+    SystemMessage &lt;|-- SystemMemorySavedMessage
+    SystemMessage &lt;|-- SystemStopHookSummaryMessage
+    SystemMessage &lt;|-- SystemTurnDurationMessage
+    SystemMessage &lt;|-- SystemPermissionRetryMessage
+    SystemMessage &lt;|-- SystemBridgeStatusMessage
+    SystemMessage &lt;|-- SystemAwaySummaryMessage
+    SystemMessage &lt;|-- SystemApiMetricsMessage
+    SystemMessage &lt;|-- SystemScheduledTaskFireMessage
+    SystemMessage &lt;|-- SystemAgentsKilledMessage
+</code></pre>
+<h3 id="判别字段"><a class="header" href="#判别字段">判别字段</a></h3>
+<p><code>type</code> 字段是主判别器。在处理消息的 switch 语句中，TypeScript 的控制流分析可以精确推断每个分支的类型：</p>
+<pre><code class="language-typescript">switch (message.type) {
+  case 'tombstone':
+    // message: TombstoneMessage
+    break
+  case 'assistant':
+    // message: AssistantMessage
+    this.mutableMessages.push(message)
+    yield* normalizeMessage(message)
+    break
+  case 'progress':
+    // message: ProgressMessage
+    break
+  case 'user':
+    // message: UserMessage
+    break
+  case 'stream_event':
+    // message: StreamEvent
+    break
+}
+</code></pre>
+<h3 id="usermessage-的多面性"><a class="header" href="#usermessage-的多面性">UserMessage 的多面性</a></h3>
+<p><code>UserMessage</code> 是系统中最多态的类型。同一个 <code>type: "user"</code> 下承载了截然不同的语义：</p>
+<p><strong>人类输入</strong>：用户在终端或 SDK 中输入的文本。</p>
+<p><strong>工具结果</strong>：模型的工具调用执行后返回的结果，通过 <code>tool_result</code> content block 标识。<code>toolUseResult</code> 字段存储原始输出，<code>sourceToolAssistantUUID</code> 指向触发这次工具调用的 assistant 消息。</p>
+<p><strong>Meta 消息</strong>：<code>isMeta: true</code> 标记的消息不会在 UI 中显示给用户，仅供模型消费。典型用例包括：</p>
+<ul>
+<li>系统注入的警告提示</li>
+<li>max_output_tokens 恢复指令</li>
+<li>compact 后的摘要</li>
+</ul>
+<p><strong>虚拟消息</strong>：<code>isVirtual: true</code> 标记的消息存在于内存中用于 UI 渲染，但在发送给 API 时被过滤掉。</p>
+<p>这种设计将所有“用户角色“（API 层面 role=“user”）的消息统一到一个类型下，避免了 API 协议的 user/assistant 交替规则被破坏。</p>
+<h3 id="assistantmessage-的丰富元数据"><a class="header" href="#assistantmessage-的丰富元数据">AssistantMessage 的丰富元数据</a></h3>
+<pre><code class="language-typescript">function baseCreateAssistantMessage({
+  content,
+  isApiErrorMessage = false,
+  apiError,
+  error,
+  errorDetails,
+  isVirtual,
+  usage = {
+    input_tokens: 0,
+    output_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+    server_tool_use: { web_search_requests: 0, web_fetch_requests: 0 },
+    service_tier: null,
+    cache_creation: {
+      ephemeral_1h_input_tokens: 0,
+      ephemeral_5m_input_tokens: 0,
+    },
+    inference_geo: null,
+    iterations: null,
+    speed: null,
+  },
+}: ...): AssistantMessage {
+  return {
+    type: 'assistant',
+    uuid: randomUUID(),
+    timestamp: new Date().toISOString(),
+    message: {
+      id: randomUUID(),
+      container: null,
+      model: SYNTHETIC_MODEL,
+      role: 'assistant',
+      stop_reason: 'stop_sequence',
+      stop_sequence: '',
+      type: 'message',
+      usage,
+      content,
+      context_management: null,
+    },
+    requestId: undefined,
+    apiError,
+    error,
+    errorDetails,
+    isApiErrorMessage,
+    isVirtual,
+  }
+}
+</code></pre>
+<p>注意 <code>usage</code> 的默认值结构——它镜像了 Claude API 响应的完整 usage 对象，包括缓存统计、服务层级、推理地理位置甚至迭代次数。合成消息（如错误消息）使用 <code>SYNTHETIC_MODEL = '&lt;synthetic&gt;'</code> 作为模型标识，这让下游的 <code>isSyntheticApiErrorMessage</code> 检查成为可能。</p>
+<h3 id="tombstonemessage消息的墓碑"><a class="header" href="#tombstonemessage消息的墓碑">TombstoneMessage：消息的墓碑</a></h3>
+<pre><code class="language-typescript">// Tombstone messages are control signals for removing messages
+case 'tombstone':
+  break
+</code></pre>
+<p>当模型降级回退（streaming fallback）发生时，之前的 partial assistant 消息已经 yield 给了 UI。为了“撤回“这些消息，引擎发射 tombstone：</p>
+<pre><code class="language-typescript">for (const msg of assistantMessages) {
+  yield { type: 'tombstone' as const, message: msg }
+}
+</code></pre>
+<p>UI 层接收到 tombstone 后，应从显示列表中移除对应的消息。这是一种事件溯源（event sourcing）模式——不是直接修改历史，而是追加一个“删除“事件。</p>
+<h3 id="systemmessage-的子类型体系"><a class="header" href="#systemmessage-的子类型体系">SystemMessage 的子类型体系</a></h3>
+<p>SystemMessage 通过 <code>subtype</code> 字段进一步细分：</p>
+<ul>
+<li><code>compact_boundary</code>：标记压缩边界，用于 –resume 恢复</li>
+<li><code>local_command</code>：本地命令（如 /compact）的输出</li>
+<li><code>api_error</code>：API 错误通知</li>
+<li><code>informational</code>：一般性信息</li>
+<li><code>microcompact_boundary</code>：微压缩边界</li>
+<li><code>memory_saved</code>：内存保存通知</li>
+<li><code>stop_hook_summary</code>：stop hook 执行摘要</li>
+<li><code>turn_duration</code>：轮次耗时统计</li>
+<li><code>api_metrics</code>：API 性能指标</li>
+<li><code>permission_retry</code>：权限重试通知</li>
+<li><code>bridge_status</code>：桥接状态变更</li>
+<li><code>away_summary</code>：离开期间摘要</li>
+<li><code>agents_killed</code>：代理终止通知</li>
+<li><code>scheduled_task_fire</code>：定时任务触发</li>
+</ul>
+<p>这种扁平的子类型枚举（而非深层继承）让 pattern matching 保持简洁，同时避免了面向对象继承链的刚性约束。</p>
+<h2 id="52-消息创建与序列化"><a class="header" href="#52-消息创建与序列化">5.2 消息创建与序列化</a></h2>
+<h3 id="工厂函数体系"><a class="header" href="#工厂函数体系">工厂函数体系</a></h3>
+<p>Claude Code 不直接构造消息对象，而是通过一组工厂函数确保每条消息都满足不变量。</p>
+<p><strong>createUserMessage</strong> 是使用最频繁的工厂函数：</p>
+<pre><code class="language-typescript">export function createUserMessage({
+  content,
+  isMeta,
+  isVisibleInTranscriptOnly,
+  isVirtual,
+  isCompactSummary,
+  toolUseResult,
+  mcpMeta,
+  uuid,
+  timestamp,
+  imagePasteIds,
+  sourceToolAssistantUUID,
+  permissionMode,
+  origin,
+  // ...
+}: { ... }): UserMessage {
+  const m: UserMessage = {
+    type: 'user',
+    message: {
+      role: 'user',
+      content: content || NO_CONTENT_MESSAGE,
+    },
+    isMeta,
+    isVisibleInTranscriptOnly,
+    isVirtual,
+    isCompactSummary,
+    uuid: (uuid as UUID | undefined) || randomUUID(),
+    timestamp: timestamp ?? new Date().toISOString(),
+    toolUseResult,
+    mcpMeta,
+    imagePasteIds,
+    sourceToolAssistantUUID,
+    permissionMode,
+    origin,
+  }
+  return m
+}
+</code></pre>
+<p>关键不变量：</p>
+<ol>
+<li><code>content</code> 为空时替换为 <code>NO_CONTENT_MESSAGE</code>，防止向 API 发送空消息。</li>
+<li><code>uuid</code> 如果未提供则自动生成，确保每条消息都有唯一标识。</li>
+<li><code>timestamp</code> 如果未提供则使用当前时间。</li>
+</ol>
+<p><strong>createAssistantMessage</strong> 和 <strong>createAssistantAPIErrorMessage</strong> 分别用于正常回复和错误回复：</p>
+<pre><code class="language-typescript">export function createAssistantMessage({
+  content,
+  usage,
+  isVirtual,
+}: { ... }): AssistantMessage {
+  return baseCreateAssistantMessage({
+    content:
+      typeof content === 'string'
+        ? [{ type: 'text', text: content === '' ? NO_CONTENT_MESSAGE : content }]
+        : content,
+    usage,
+    isVirtual,
+  })
+}
+</code></pre>
+<p>注意字符串到 ContentBlock 数组的自动转换——调用方可以传入纯文本，工厂函数会将其包装为 <code>[{ type: 'text', text: ... }]</code>。</p>
+<p><strong>createProgressMessage</strong> 创建工具执行进度消息：</p>
+<pre><code class="language-typescript">export function createProgressMessage&lt;P extends Progress&gt;({
+  toolUseID,
+  parentToolUseID,
+  data,
+}: { ... }): ProgressMessage&lt;P&gt; {
+  return {
+    type: 'progress',
+    data,
+    toolUseID,
+    parentToolUseID,
+    uuid: randomUUID(),
+    timestamp: new Date().toISOString(),
+  }
+}
+</code></pre>
+<p>Progress 是泛型参数——不同工具可以定义自己的进度数据结构，类型安全地传递给 UI 层。</p>
+<h3 id="合成消息常量"><a class="header" href="#合成消息常量">合成消息常量</a></h3>
+<p>系统定义了一组固定的合成消息文本：</p>
+<pre><code class="language-typescript">export const INTERRUPT_MESSAGE = '[Request interrupted by user]'
+export const CANCEL_MESSAGE =
+  "The user doesn't want to take this action right now. ..."
+export const REJECT_MESSAGE =
+  "The user doesn't want to proceed with this tool use. ..."
+
+export const SYNTHETIC_MESSAGES = new Set([
+  INTERRUPT_MESSAGE,
+  INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  CANCEL_MESSAGE,
+  REJECT_MESSAGE,
+  NO_RESPONSE_REQUESTED,
+])
+</code></pre>
+<p><code>SYNTHETIC_MESSAGES</code> 集合用于 <code>isSyntheticMessage</code> 检查——这些消息是系统生成的控制信号，不应被计入用户消息统计。</p>
+<h3 id="确定性-uuid-派生"><a class="header" href="#确定性-uuid-派生">确定性 UUID 派生</a></h3>
+<p>当消息需要拆分（normalizeMessages）时，子消息的 UUID 不是随机生成的，而是从父 UUID 确定性派生的：</p>
+<pre><code class="language-typescript">export function deriveUUID(parentUUID: UUID, index: number): UUID {
+  const hex = index.toString(16).padStart(12, '0')
+  return `${parentUUID.slice(0, 24)}${hex}` as UUID
+}
+</code></pre>
+<p>这意味着同一条消息在不同时刻拆分总是产生相同的子 UUID，这对于 transcript 的一致性和 <code>--resume</code> 功能至关重要。</p>
+<h2 id="53-工具结果消息"><a class="header" href="#53-工具结果消息">5.3 工具结果消息</a></h2>
+<h3 id="tool_result-的编码"><a class="header" href="#tool_result-的编码">tool_result 的编码</a></h3>
+<p>工具执行结果被编码为 <code>UserMessage</code>，其 <code>content</code> 字段包含一个 <code>tool_result</code> content block：</p>
+<pre><code class="language-typescript">createUserMessage({
+  content: [
+    {
+      type: 'tool_result',
+      content: resultContent,
+      is_error: isError,
+      tool_use_id: toolUseBlock.id,
+    },
+  ],
+  toolUseResult: originalOutput,
+  sourceToolAssistantUUID: assistantMessage.uuid,
+})
+</code></pre>
+<p>这里存在一个重要的双重存储：</p>
+<ul>
+<li><code>content[0].content</code>：发送给 API 的序列化结果（字符串或 content block 数组）。</li>
+<li><code>toolUseResult</code>：工具的原始输出（保持原始类型），用于 UI 渲染和 HFI 数据提取。</li>
+</ul>
+<h3 id="合成工具结果占位符"><a class="header" href="#合成工具结果占位符">合成工具结果占位符</a></h3>
+<p>当工具执行被中断，或 API 调用意外抛出异常，可能出现 <code>tool_use</code> 没有对应 <code>tool_result</code> 的情况。<code>yieldMissingToolResultBlocks</code> 函数处理这个“悬空配对“问题：</p>
+<pre><code class="language-typescript">function* yieldMissingToolResultBlocks(
+  assistantMessages: AssistantMessage[],
+  errorMessage: string,
+) {
+  for (const assistantMessage of assistantMessages) {
+    const toolUseBlocks = assistantMessage.message.content.filter(
+      content =&gt; content.type === 'tool_use',
+    ) as ToolUseBlock[]
+
+    for (const toolUse of toolUseBlocks) {
+      yield createUserMessage({
+        content: [
+          {
+            type: 'tool_result',
+            content: errorMessage,
+            is_error: true,
+            tool_use_id: toolUse.id,
+          },
+        ],
+        toolUseResult: errorMessage,
+        sourceToolAssistantUUID: assistantMessage.uuid,
+      })
+    }
+  }
+}
+</code></pre>
+<p>占位符的存在有一个训练数据安全影响：</p>
+<pre><code class="language-typescript">// Exported so HFI submission can reject any payload containing it —
+// placeholder satisfies pairing structurally but the content is fake,
+// which poisons training data if submitted.
+export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =
+  '[Tool result missing due to internal error]'
+</code></pre>
+<h3 id="权限拒绝的精细消息"><a class="header" href="#权限拒绝的精细消息">权限拒绝的精细消息</a></h3>
+<p>工具被拒绝时，消息根据上下文有不同的表述：</p>
+<pre><code class="language-typescript">// 用户手动拒绝
+export const REJECT_MESSAGE =
+  "The user doesn't want to proceed with this tool use. The tool use was rejected..."
+
+// 子代理内的拒绝（无用户交互）
+export const SUBAGENT_REJECT_MESSAGE =
+  'Permission for this tool use was denied. The tool use was rejected...'
+
+// 自动模式分类器拒绝
+export function buildYoloRejectionMessage(reason: string): string {
+  return `${AUTO_MODE_REJECTION_PREFIX}${reason}. ` +
+    `If you have other tasks that don't depend on this action, continue working on those. ` +
+    `${DENIAL_WORKAROUND_GUIDANCE} ` + ruleHint
+}
+</code></pre>
+<p><code>DENIAL_WORKAROUND_GUIDANCE</code> 是一段精心撰写的指导文本：</p>
+<pre><code class="language-typescript">export const DENIAL_WORKAROUND_GUIDANCE =
+  `IMPORTANT: You *may* attempt to accomplish this action using other tools ` +
+  `that might naturally be used to accomplish this goal, ` +
+  `e.g. using head instead of cat. But you *should not* attempt to work ` +
+  `around this denial in malicious ways...`
+</code></pre>
+<p>这段文本在安全工程和用户体验之间取得平衡——允许模型寻找合理替代方案，但明确禁止恶意绕过。</p>
+<h3 id="消息创建与工具结果的数据流"><a class="header" href="#消息创建与工具结果的数据流">消息创建与工具结果的数据流</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User as 用户输入
+    participant REPL as REPL.tsx
+    participant QE as QueryEngine
+    participant API as Claude API
+    participant STE as StreamingToolExecutor
+    participant Tool as 具体工具
+    participant TS as Transcript Storage
+
+    User-&gt;&gt;REPL: 输入文本
+    REPL-&gt;&gt;QE: submitMessage(prompt)
+    QE-&gt;&gt;QE: createUserMessage({content})
+    QE-&gt;&gt;TS: recordTranscript(messages) [预写]
+    QE-&gt;&gt;API: messages + systemPrompt
+    API--&gt;&gt;QE: AssistantMessage (stream)
+    QE-&gt;&gt;QE: baseCreateAssistantMessage({content, usage})
+
+    Note over API,STE: 模型返回 tool_use block
+    QE-&gt;&gt;STE: addTool(toolUseBlock)
+    STE-&gt;&gt;Tool: tool.call(input, context)
+    Tool--&gt;&gt;STE: ToolResult{data}
+    STE-&gt;&gt;STE: createUserMessage({tool_result})
+    Note right of STE: toolUseResult = 原始输出&lt;br/&gt;content = 序列化结果&lt;br/&gt;sourceToolAssistantUUID = 关联
+
+    STE--&gt;&gt;QE: yield 工具结果消息
+    QE-&gt;&gt;TS: void recordTranscript() [fire-and-forget]
+    QE-&gt;&gt;API: 继续下一轮...
+</code></pre>
+<h3 id="消息归一化管线"><a class="header" href="#消息归一化管线">消息归一化管线</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+    A["内部消息列表&lt;br/&gt;(7+ 种类型)"] --&gt; B["过滤阶段"]
+    B --&gt; B1["移除 progress"]
+    B --&gt; B2["移除 isVirtual"]
+    B --&gt; B3["移除 synthetic API errors"]
+
+    B1 &amp; B2 &amp; B3 --&gt; C["附件重排序&lt;br/&gt;reorderAttachmentsForAPI"]
+
+    C --&gt; D["连续 user 合并&lt;br/&gt;mergeUserMessages"]
+
+    D --&gt; E["system → user 转换&lt;br/&gt;local_command 等"]
+
+    E --&gt; F["媒体剥离&lt;br/&gt;过大图片/PDF"]
+
+    F --&gt; G["API 格式&lt;br/&gt;user/assistant 交替"]
+
+    style A fill:#e1f5fe
+    style G fill:#c8e6c9
+</code></pre>
+<h2 id="54-消息持久化"><a class="header" href="#54-消息持久化">5.4 消息持久化</a></h2>
+<h3 id="transcript-录制机制"><a class="header" href="#transcript-录制机制">Transcript 录制机制</a></h3>
+<p>Claude Code 使用 JSONL（JSON Lines）格式将对话消息持久化到磁盘。核心入口是 <code>recordTranscript</code> 函数：</p>
+<pre><code class="language-typescript">export async function recordTranscript(
+  messages: Message[],
+  teamInfo?: TeamInfo,
+  startingParentUuidHint?: UUID,
+  allMessages?: readonly Message[],
+): Promise&lt;UUID | null&gt; {
+  const cleanedMessages = cleanMessagesForLogging(messages, allMessages)
+  const sessionId = getSessionId() as UUID
+  const messageSet = await getSessionMessages(sessionId)
+  const newMessages: typeof cleanedMessages = []
+  let startingParentUuid: UUID | undefined = startingParentUuidHint
+  let seenNewMessage = false
+  for (const m of cleanedMessages) {
+    if (messageSet.has(m.uuid as UUID)) {
+      if (!seenNewMessage &amp;&amp; isChainParticipant(m)) {
+        startingParentUuid = m.uuid as UUID
+      }
+    } else {
+      newMessages.push(m)
+      seenNewMessage = true
+    }
+  }
+  if (newMessages.length &gt; 0) {
+    await getProject().insertMessageChain(
+      newMessages,
+      false,
+      undefined,
+      startingParentUuid,
+      teamInfo,
+    )
+  }
+  return (lastRecorded?.uuid as UUID | undefined) ?? startingParentUuid ?? null
+}
+</code></pre>
+<p>这个函数有几个关键的设计决策：</p>
+<p><strong>增量录制</strong>：通过 <code>messageSet</code> 跟踪已录制的消息 UUID，每次只写入新消息。这避免了在长对话中反复序列化整个历史。</p>
+<p><strong>父链追踪</strong>：<code>startingParentUuid</code> 维护消息之间的因果链。这对于 <code>--resume</code> 恢复和分支管理至关重要。</p>
+<p><strong>前缀检测</strong>：已录制消息只有在形成前缀时才更新 <code>startingParentUuid</code>。这处理了 compaction 场景——新的 compact boundary 和摘要消息出现在保留消息之前，不应被视为父链的一部分。</p>
+<h3 id="crashproof-设计"><a class="header" href="#crashproof-设计">Crashproof 设计</a></h3>
+<p>消息持久化的时序经过精心设计以实现崩溃安全：</p>
+<pre><code class="language-typescript">// 用户消息在进入查询循环之前写入
+if (persistSession &amp;&amp; messagesFromUserInput.length &gt; 0) {
+  const transcriptPromise = recordTranscript(messages)
+  if (isBareMode()) {
+    void transcriptPromise  // fire-and-forget for scripts
+  } else {
+    await transcriptPromise  // block for interactive sessions
+  }
+}
+</code></pre>
+<p>注释中详细解释了为什么用户消息必须在 API 调用之前写入：</p>
+<pre><code>// If the process is killed before that (e.g. user clicks Stop in cowork
+// seconds after send), the transcript is left with only queue-operation
+// entries; getLastSessionLog filters those out, returns null, and --resume
+// fails with "No conversation found".
+</code></pre>
+<p>对于 assistant 消息，策略不同——使用 fire-and-forget：</p>
+<pre><code class="language-typescript">if (message.type === 'assistant') {
+  void recordTranscript(messages)  // fire-and-forget
+} else {
+  await recordTranscript(messages)  // await for user messages
+}
+</code></pre>
+<p>原因是 <code>claude.ts</code> 的流式机制——它 yield 一个 assistant 消息后会 mutate 该消息的 <code>usage</code> 和 <code>stop_reason</code> 字段。如果 await 写入，后续的 <code>message_delta</code> 事件就无法及时处理。写入队列的 100ms 延迟 jsonStringify 自然处理了这个竞态。</p>
+<h3 id="compact-boundary-的持久化"><a class="header" href="#compact-boundary-的持久化">Compact Boundary 的持久化</a></h3>
+<p>压缩边界需要特殊处理——在写入 compact boundary 之前，必须确保保留段的尾部消息已经写入：</p>
+<pre><code class="language-typescript">if (message.type === 'system' &amp;&amp; message.subtype === 'compact_boundary') {
+  const tailUuid = message.compactMetadata?.preservedSegment?.tailUuid
+  if (tailUuid) {
+    const tailIdx = this.mutableMessages.findLastIndex(
+      m =&gt; m.uuid === tailUuid,
+    )
+    if (tailIdx !== -1) {
+      await recordTranscript(this.mutableMessages.slice(0, tailIdx + 1))
+    }
+  }
+}
+</code></pre>
+<p>如果跳过这一步，<code>--resume</code> 恢复时 <code>applyPreservedSegmentRelinks</code> 的 tail-to-head 遍历会因找不到已录制的尾部消息而失败。</p>
+<h2 id="55-消息归一化"><a class="header" href="#55-消息归一化">5.5 消息归一化</a></h2>
+<h3 id="normalizemessagesforapi"><a class="header" href="#normalizemessagesforapi">normalizeMessagesForAPI</a></h3>
+<p><code>normalizeMessagesForAPI</code> 是消息发送给 API 前的最后一道转换。它的职责是将内部的丰富消息类型映射为 Claude API 接受的 user/assistant 交替格式。</p>
+<pre><code class="language-typescript">export function normalizeMessagesForAPI(
+  messages: Message[],
+  tools: Tools = [],
+): (UserMessage | AssistantMessage)[] {
+  const availableToolNames = new Set(tools.map(t =&gt; t.name))
+
+  const reorderedMessages = reorderAttachmentsForAPI(messages).filter(
+    m =&gt; !((m.type === 'user' || m.type === 'assistant') &amp;&amp; m.isVirtual),
+  )
+</code></pre>
+<p>转换过程包含多个阶段：</p>
+<p><strong>第一阶段：过滤</strong></p>
+<ul>
+<li>移除 <code>progress</code> 消息（仅用于 UI）</li>
+<li>移除虚拟消息（<code>isVirtual: true</code>）</li>
+<li>移除合成 API 错误消息（<code>isSyntheticApiErrorMessage</code>）</li>
+</ul>
+<p><strong>第二阶段：附件重排序</strong></p>
+<p><code>reorderAttachmentsForAPI</code> 将 attachment 消息上移到它们相关的 tool_result 之前，因为 API 要求 user 消息不能出现在 tool_result 之间。</p>
+<p><strong>第三阶段：连续 user 消息合并</strong></p>
+<p>Bedrock API 不支持连续的 user 消息（1P API 支持但会自动合并），所以归一化函数主动合并它们：</p>
+<pre><code class="language-typescript">case 'user': {
+  const lastMessage = last(result)
+  if (lastMessage?.type === 'user') {
+    result[result.length - 1] = mergeUserMessages(lastMessage, userMsg)
+    return
+  }
+  result.push(userMsg)
+  return
+}
+</code></pre>
+<p><strong>第四阶段：System 消息转 User 消息</strong></p>
+<p><code>local_command</code> 类型的系统消息需要转换为 user 消息，因为 API 不接受 system role 的中间消息：</p>
+<pre><code class="language-typescript">case 'system': {
+  const userMsg = createUserMessage({
+    content: message.content,
+    uuid: message.uuid,
+    timestamp: message.timestamp,
+  })
+  // ...
+}
+</code></pre>
+<p><strong>第五阶段：错误引起的媒体剥离</strong></p>
+<p>如果之前的 API 调用因为图片/PDF 过大而失败，归一化函数会从对应的 user 消息中剥离这些媒体块，防止重复触发同样的错误：</p>
+<pre><code class="language-typescript">const typesToStrip = stripTargets.get(normalizedMessage.uuid)
+if (typesToStrip &amp;&amp; normalizedMessage.isMeta) {
+  const content = normalizedMessage.message.content
+  if (Array.isArray(content)) {
+    const filtered = content.filter(
+      block =&gt; !typesToStrip.has(block.type),
+    )
+    // ...
+  }
+}
+</code></pre>
+<h3 id="normalizemessagesui-归一化"><a class="header" href="#normalizemessagesui-归一化">normalizeMessages（UI 归一化）</a></h3>
+<p>与 API 归一化不同，UI 归一化（<code>normalizeMessages</code>）将多 content block 的消息拆分为每条消息一个 block：</p>
+<pre><code class="language-typescript">export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
+  let isNewChain = false
+  return messages.flatMap(message =&gt; {
+    switch (message.type) {
+      case 'assistant': {
+        isNewChain = isNewChain || message.message.content.length &gt; 1
+        return message.message.content.map((_, index) =&gt; {
+          const uuid = isNewChain
+            ? deriveUUID(message.uuid, index)
+            : message.uuid
+          return {
+            type: 'assistant',
+            message: { ...message.message, content: [_] },
+            uuid,
+            // ...
+          }
+        })
+      }
+      // ...
+    }
+  })
+}
+</code></pre>
+<p><code>isNewChain</code> 标志确保一旦发生拆分，后续所有消息的 UUID 都重新派生。这维护了 UUID 的唯一性不变量——不会出现两条消息共享同一个 UUID 的情况。</p>
+<h3 id="reordermessagesinui"><a class="header" href="#reordermessagesinui">reorderMessagesInUI</a></h3>
+<p>UI 渲染需要的消息顺序与 API 不同。<code>reorderMessagesInUI</code> 将工具调用相关的消息按逻辑分组：</p>
+<pre><code>tool_use -&gt; pre_hooks -&gt; tool_result -&gt; post_hooks
+</code></pre>
+<p>而非按时间顺序。这让用户看到的是一个完整的“工具调用故事“，而非零散的交错事件。</p>
+<pre><code class="language-typescript">// First pass: group messages by tool use ID
+for (const message of messages) {
+  if (isToolUseRequestMessage(message)) {
+    toolUseGroups.set(toolUseID, {
+      toolUse: null,
+      preHooks: [],
+      toolResult: null,
+      postHooks: [],
+    })
+  }
+}
+
+// Second pass: reconstruct in logical order
+for (const message of messages) {
+  if (isToolUseRequestMessage(message)) {
+    const group = toolUseGroups.get(toolUseID)
+    result.push(group.toolUse)
+    result.push(...group.preHooks)
+    if (group.toolResult) result.push(group.toolResult)
+    result.push(...group.postHooks)
+  }
+}
+</code></pre>
+<p>这种两遍扫描算法（first pass: group, second pass: reconstruct）在保持 O(n) 时间复杂度的同时，实现了任意交错消息的正确重排。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part2-core-engine/ch04-query-engine.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part2-core-engine/ch06-streaming.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part2-core-engine/ch04-query-engine.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part2-core-engine/ch06-streaming.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

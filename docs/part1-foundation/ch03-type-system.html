@@ -1,0 +1,729 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 3 章：类型系统设计 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part1-foundation/ch03-type-system.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-3-章-类型系统设计"><a class="header" href="#第-3-章-类型系统设计">第 3 章 类型系统设计</a></h1>
+<blockquote>
+<p>“类型不是约束，而是思维的外化。一个好的类型系统设计，就是一份自我验证的架构文档。”</p>
+</blockquote>
+<p>Claude Code 是一个深度依赖 TypeScript 类型系统的项目。其类型设计不仅仅是为了编译时检查，更是一种<strong>架构级别的约束传播机制</strong>：通过类型定义来强制执行模块边界、打破循环依赖、保证 API 契约，以及在 Agent 系统中实现类型安全的消息传递。本章将从三个维度剖析这套类型系统的设计思想。</p>
+<h2 id="31-typescript-严格模式的工程价值"><a class="header" href="#31-typescript-严格模式的工程价值">3.1 TypeScript 严格模式的工程价值</a></h2>
+<p>在一个拥有 1900 多个文件的代码库中，TypeScript 严格模式不是可选的锦上添花，而是工程必需品。Claude Code 对类型严格性的要求体现在多个层面。</p>
+<h3 id="品牌类型branded-types"><a class="header" href="#品牌类型branded-types">品牌类型（Branded Types）</a></h3>
+<p><code>src/types/ids.ts</code> 展示了一种高级的类型安全技巧 —— 品牌类型：</p>
+<pre><code class="language-typescript">// src/types/ids.ts
+export type SessionId = string &amp; { readonly __brand: 'SessionId' }
+export type AgentId = string &amp; { readonly __brand: 'AgentId' }
+</code></pre>
+<p><code>SessionId</code> 和 <code>AgentId</code> 在运行时都是普通的 <code>string</code>，但在编译时它们是不可互换的：</p>
+<pre><code class="language-typescript">function processSession(id: SessionId): void { /* ... */ }
+function processAgent(id: AgentId): void { /* ... */ }
+
+const sessionId: SessionId = asSessionId('abc-123')
+const agentId: AgentId = asAgentId('a-deadbeef01234567')
+
+processSession(sessionId)  // 编译通过
+processSession(agentId)    // 编译错误：AgentId 不能赋值给 SessionId
+</code></pre>
+<p>这种设计消除了一类常见的 bug：在 Agent 系统中，Session ID 和 Agent ID 都是字符串，容易在参数传递中混淆。品牌类型将这种运行时 bug 提升为编译时错误。</p>
+<p>创建品牌类型的函数提供了窄化入口：</p>
+<pre><code class="language-typescript">export function asSessionId(id: string): SessionId {
+  return id as SessionId
+}
+
+export function asAgentId(id: string): AgentId {
+  return id as AgentId
+}
+</code></pre>
+<p>注意 <code>toAgentId()</code> 函数还包含运行时验证：</p>
+<pre><code class="language-typescript">const AGENT_ID_PATTERN = /^a(?:.+-)?[0-9a-f]{16}$/
+
+export function toAgentId(s: string): AgentId | null {
+  return AGENT_ID_PATTERN.test(s) ? (s as AgentId) : null
+}
+</code></pre>
+<p><code>toAgentId</code> 和 <code>asAgentId</code> 的区别在于：前者是<strong>安全的窄化</strong>（返回 <code>null</code> 表示无效输入），后者是<strong>断言式窄化</strong>（调用者保证输入合法）。在 Claude Code 的使用中，<code>toAgentId</code> 用于解析外部输入（如 URL 参数），<code>asAgentId</code> 用于内部已知合法的场景。</p>
+<h3 id="deepimmutable-类型"><a class="header" href="#deepimmutable-类型">DeepImmutable 类型</a></h3>
+<p><code>ToolPermissionContext</code> 被 <code>DeepImmutable</code> 包装，确保权限上下文在传递过程中不会被意外修改：</p>
+<pre><code class="language-typescript">// src/Tool.ts
+export type ToolPermissionContext = DeepImmutable&lt;{
+  mode: PermissionMode
+  additionalWorkingDirectories: Map&lt;string, AdditionalWorkingDirectory&gt;
+  alwaysAllowRules: ToolPermissionRulesBySource
+  alwaysDenyRules: ToolPermissionRulesBySource
+  alwaysAskRules: ToolPermissionRulesBySource
+  isBypassPermissionsModeAvailable: boolean
+  // ...
+}&gt;
+</code></pre>
+<p><code>DeepImmutable</code> 递归地将所有属性标记为 <code>readonly</code>，将 <code>Map</code> 转为 <code>ReadonlyMap</code>，将数组转为 <code>readonly</code> 数组。这保证了权限上下文在工具执行的整个生命周期中是不可变的 —— 任何试图修改它的代码都会导致编译错误。</p>
+<h2 id="32-循环依赖破解纯类型文件的架构模式"><a class="header" href="#32-循环依赖破解纯类型文件的架构模式">3.2 循环依赖破解：纯类型文件的架构模式</a></h2>
+<p>循环依赖是大型 TypeScript 项目中最常见的架构退化信号。Claude Code 采用了一种系统性的解决方案：<strong>将共享类型提取到纯类型文件中</strong>。</p>
+<h3 id="问题根源"><a class="header" href="#问题根源">问题根源</a></h3>
+<p>考虑以下依赖场景：</p>
+<pre><code class="language-mermaid">graph LR
+    A["Tool.ts&lt;br/&gt;(定义 Tool 接口)"] --&gt;|"import"| B["permissions.ts&lt;br/&gt;(定义权限检查)"]
+    B --&gt;|"import"| C["Tool.ts 中的 ToolPermissionContext"]
+
+    style A fill:#ff9999
+    style B fill:#ff9999
+</code></pre>
+<p><code>Tool.ts</code> 需要引用权限类型，权限模块也需要引用工具类型。在运行时，这种循环会导致模块初始化时某些导出为 <code>undefined</code>。</p>
+<h3 id="解决方案types-目录"><a class="header" href="#解决方案types-目录">解决方案：types/ 目录</a></h3>
+<p><code>src/types/</code> 目录中的文件遵循严格的规则：<strong>只包含类型定义和编译时常量，没有运行时依赖</strong>。</p>
+<pre><code class="language-typescript">// src/types/permissions.ts 文件头注释
+/**
+ * Pure permission type definitions extracted to break import cycles.
+ *
+ * This file contains only type definitions and constants with no
+ * runtime dependencies.
+ * Implementation files remain in src/utils/permissions/ but can now
+ * import from here to avoid circular dependencies.
+ */
+</code></pre>
+<pre><code class="language-mermaid">graph TD
+    subgraph "types/ — 纯类型层（无运行时代码）"
+        TP["types/permissions.ts&lt;br/&gt;PermissionMode, PermissionResult, ..."]
+        TH["types/hooks.ts&lt;br/&gt;HookEvent, HookResult, ..."]
+        TI["types/ids.ts&lt;br/&gt;SessionId, AgentId"]
+        TC["types/command.ts&lt;br/&gt;Command, PromptCommand, ..."]
+    end
+
+    subgraph "实现层"
+        Tool["Tool.ts"] --&gt;|"import type"| TP
+        Tool --&gt;|"import type"| TH
+        Perm["utils/permissions/"] --&gt;|"import type"| TP
+        Hook["utils/hooks/"] --&gt;|"import type"| TH
+        Main["main.tsx"] --&gt;|"import type"| TC
+        QE["QueryEngine.ts"] --&gt;|"import type"| TI
+    end
+
+    style TP fill:#ddeeff
+    style TH fill:#ddeeff
+    style TI fill:#ddeeff
+    style TC fill:#ddeeff
+</code></pre>
+<p>在 <code>Tool.ts</code> 中可以看到这种模式的具体应用：</p>
+<pre><code class="language-typescript">// src/Tool.ts
+// 从集中位置导入权限类型以打破导入循环
+import type {
+  AdditionalWorkingDirectory,
+  PermissionMode,
+  PermissionResult,
+} from './types/permissions.js'
+
+// 从集中位置导入工具进度类型以打破导入循环
+import type {
+  AgentToolProgress,
+  BashProgress,
+  MCPProgress,
+  REPLToolProgress,
+  SkillToolProgress,
+  TaskOutputProgress,
+  ToolProgressData,
+  WebSearchProgress,
+} from './types/tools.js'
+</code></pre>
+<p>注释明确标注了 “to break import cycles”。同时，为了向后兼容，这些类型被重新导出：</p>
+<pre><code class="language-typescript">// 为了向后兼容，重新导出进度类型
+export type {
+  AgentToolProgress,
+  BashProgress,
+  MCPProgress,
+  REPLToolProgress,
+  SkillToolProgress,
+  TaskOutputProgress,
+  WebSearchProgress,
+}
+</code></pre>
+<p>这意味着现有的消费者代码不需要修改导入路径 —— 它们仍然可以从 <code>Tool.ts</code> 导入这些类型，但 <code>Tool.ts</code> 自身的依赖链不再形成循环。</p>
+<h3 id="typespermissionsts-的完整剖析"><a class="header" href="#typespermissionsts-的完整剖析">types/permissions.ts 的完整剖析</a></h3>
+<p><code>src/types/permissions.ts</code> 是这种模式的范例。它定义了完整的权限类型层次结构：</p>
+<pre><code class="language-typescript">// 权限模式 — 判别联合
+export type ExternalPermissionMode = (typeof EXTERNAL_PERMISSION_MODES)[number]
+export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
+export type PermissionMode = InternalPermissionMode
+
+// 权限行为 — 三值枚举
+export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+
+// 权限规则 — 来源标签
+export type PermissionRuleSource =
+  | 'userSettings'
+  | 'projectSettings'
+  | 'localSettings'
+  | 'flagSettings'
+  | 'policySettings'
+  | 'cliArg'
+  | 'command'
+  | 'session'
+
+// 权限决策 — 判别联合
+export type PermissionDecision&lt;Input&gt; =
+  | PermissionAllowDecision&lt;Input&gt;
+  | PermissionAskDecision&lt;Input&gt;
+  | PermissionDenyDecision
+</code></pre>
+<p>注意 <code>PermissionMode</code> 的定义方式：外部可见的模式（<code>ExternalPermissionMode</code>）是内部模式（<code>InternalPermissionMode</code>）的子集。<code>'auto'</code> 和 <code>'bubble'</code> 模式只在内部使用。通过 <code>feature()</code> 编译时开关，<code>'auto'</code> 模式甚至可以从运行时验证集合中完全移除：</p>
+<pre><code class="language-typescript">export const INTERNAL_PERMISSION_MODES = [
+  ...EXTERNAL_PERMISSION_MODES,
+  ...(feature('TRANSCRIPT_CLASSIFIER')
+    ? (['auto'] as const)
+    : ([] as const)),
+] as const satisfies readonly PermissionMode[]
+</code></pre>
+<p>这是一个精妙的设计：类型系统中 <code>'auto'</code> 始终存在（因为 <code>InternalPermissionMode</code> 包含它），但运行时验证集合可以根据 feature flag 排除它。<code>satisfies</code> 关键字确保了数组内容与类型定义的一致性。</p>
+<h2 id="33-zod-schema运行时类型验证"><a class="header" href="#33-zod-schema运行时类型验证">3.3 Zod Schema：运行时类型验证</a></h2>
+<p>TypeScript 的类型在编译后完全消失。对于需要处理外部输入的系统来说，仅靠编译时类型检查是不够的。Claude Code 使用 Zod v4 实现运行时类型验证，特别是在以下场景中：</p>
+<h3 id="工具输入验证"><a class="header" href="#工具输入验证">工具输入验证</a></h3>
+<p>每个工具的 <code>inputSchema</code> 是一个 Zod schema：</p>
+<pre><code class="language-typescript">// 概念性示例：FileRead 工具的输入 schema
+const inputSchema = z.object({
+  file_path: z.string().describe("The absolute path to the file to read"),
+  offset: z.number().optional().describe("Line number to start reading from"),
+  limit: z.number().optional().describe("Number of lines to read"),
+})
+</code></pre>
+<p>这个 schema 同时服务三个目的：</p>
+<ol>
+<li><strong>API 契约</strong>：自动生成 JSON Schema，发送给 Anthropic API 的 <code>tools</code> 参数</li>
+<li><strong>运行时验证</strong>：验证模型返回的工具调用参数是否合法</li>
+<li><strong>类型推断</strong>：通过 <code>z.infer&lt;typeof inputSchema&gt;</code> 自动推断 TypeScript 类型</li>
+</ol>
+<pre><code class="language-mermaid">graph LR
+    ZS["Zod Schema&lt;br/&gt;z.object({...})"]
+    ZS --&gt;|"z.infer&lt;&gt;"| TS["TypeScript 类型&lt;br/&gt;{file_path: string, ...}"]
+    ZS --&gt;|"toJsonSchema()"| JS["JSON Schema&lt;br/&gt;{type: 'object', ...}"]
+    ZS --&gt;|"schema.parse()"| RV["运行时验证&lt;br/&gt;✓/✗"]
+
+    style ZS fill:#ffffcc
+</code></pre>
+<h3 id="hook-响应验证"><a class="header" href="#hook-响应验证">Hook 响应验证</a></h3>
+<p><code>src/types/hooks.ts</code> 中定义了 Hook 系统的响应 schema：</p>
+<pre><code class="language-typescript">// src/types/hooks.ts
+export const syncHookResponseSchema = lazySchema(() =&gt;
+  z.object({
+    continue: z.boolean()
+      .describe('Whether Claude should continue after hook (default: true)')
+      .optional(),
+    suppressOutput: z.boolean()
+      .describe('Hide stdout from transcript (default: false)')
+      .optional(),
+    stopReason: z.string()
+      .describe('Message shown when continue is false')
+      .optional(),
+    decision: z.enum(['approve', 'block']).optional(),
+    reason: z.string()
+      .describe('Explanation for the decision')
+      .optional(),
+    hookSpecificOutput: z.union([
+      z.object({
+        hookEventName: z.literal('PreToolUse'),
+        permissionDecision: permissionBehaviorSchema().optional(),
+        updatedInput: z.record(z.string(), z.unknown()).optional(),
+        additionalContext: z.string().optional(),
+      }),
+      z.object({
+        hookEventName: z.literal('PostToolUse'),
+        additionalContext: z.string().optional(),
+        updatedMCPToolOutput: z.unknown().optional(),
+      }),
+      // ... 更多 hook 事件类型
+    ]).optional(),
+  }),
+)
+</code></pre>
+<p>注意 <code>lazySchema()</code> 包装器。这是一种延迟初始化模式 —— Zod schema 的创建有非零成本（需要分配验证器对象），通过 lazy 包装可以推迟到首次使用时才初始化。</p>
+<h3 id="编译时类型一致性断言"><a class="header" href="#编译时类型一致性断言">编译时类型一致性断言</a></h3>
+<p>在 <code>hooks.ts</code> 的末尾有一段引人注目的代码：</p>
+<pre><code class="language-typescript">// src/types/hooks.ts
+import type { IsEqual } from 'type-fest'
+type Assert&lt;T extends true&gt; = T
+type _assertSDKTypesMatch = Assert&lt;
+  IsEqual&lt;SchemaHookJSONOutput, HookJSONOutput&gt;
+&gt;
+</code></pre>
+<p>这是一个<strong>编译时断言</strong>，确保 Zod schema 推断出的类型（<code>SchemaHookJSONOutput</code>）与 SDK 中手动定义的类型（<code>HookJSONOutput</code>）完全一致。如果两者不匹配，编译会失败。</p>
+<p>这种模式解决了一个常见问题：当 Zod schema 和手动类型定义同时存在时，它们可能因为独立修改而产生不一致。编译时断言充当了两个类型定义之间的“契约验证器“。</p>
+<pre><code class="language-mermaid">graph TD
+    SDK["SDK 手动定义&lt;br/&gt;HookJSONOutput"] --&gt;|"必须匹配"| Check["编译时断言&lt;br/&gt;Assert&lt;IsEqual&lt;A, B&gt;&gt;"]
+    Zod["Zod Schema 推断&lt;br/&gt;SchemaHookJSONOutput"] --&gt;|"必须匹配"| Check
+    Check --&gt;|"一致"| OK["编译通过"]
+    Check --&gt;|"不一致"| Fail["编译错误"]
+
+    style Check fill:#ffeecc
+</code></pre>
+<h2 id="34-泛型工具类型toolinput-output-progress"><a class="header" href="#34-泛型工具类型toolinput-output-progress">3.4 泛型工具类型：Tool&lt;Input, Output, Progress&gt;</a></h2>
+<p><code>Tool</code> 类型是 Claude Code 类型系统的核心。它是一个三参数泛型类型，将输入验证、输出类型和进度报告统一在一个接口中：</p>
+<pre><code class="language-typescript">// src/Tool.ts
+export type Tool&lt;
+  Input extends AnyObject = AnyObject,
+  Output = unknown,
+  P extends ToolProgressData = ToolProgressData,
+&gt; = {
+  readonly name: string
+  readonly inputSchema: Input
+
+  call(
+    args: z.infer&lt;Input&gt;,
+    context: ToolUseContext,
+    canUseTool: CanUseToolFn,
+    parentMessage: AssistantMessage,
+    onProgress?: ToolCallProgress&lt;P&gt;,
+  ): Promise&lt;ToolResult&lt;Output&gt;&gt;
+
+  description(
+    input: z.infer&lt;Input&gt;,
+    options: { /* ... */ },
+  ): Promise&lt;string&gt;
+
+  renderToolResultMessage?(
+    content: Output,
+    progressMessagesForMessage: ProgressMessage&lt;P&gt;[],
+    options: { /* ... */ },
+  ): React.ReactNode
+
+  // ... 30+ 方法定义
+}
+</code></pre>
+<p>三个类型参数的含义：</p>
+<ul>
+<li><strong><code>Input extends AnyObject</code></strong>：工具输入的 Zod schema 类型。通过 <code>z.infer&lt;Input&gt;</code> 自动推断为 TypeScript 类型</li>
+<li><strong><code>Output</code></strong>：工具执行结果的类型。不同工具有不同的输出结构</li>
+<li><strong><code>P extends ToolProgressData</code></strong>：进度报告的类型。不同工具报告不同的进度信息</li>
+</ul>
+<p>这种泛型设计确保了<strong>方法签名之间的类型一致性</strong>。例如，<code>call()</code> 方法返回 <code>ToolResult&lt;Output&gt;</code>，而 <code>renderToolResultMessage()</code> 接收 <code>Output</code> 类型的 <code>content</code> 参数 —— 编译器确保了产生结果和渲染结果使用相同的类型。</p>
+<h3 id="buildtool-与-tooldef"><a class="header" href="#buildtool-与-tooldef">buildTool 与 ToolDef</a></h3>
+<p>为了简化工具定义，Claude Code 引入了 <code>buildTool()</code> 工厂函数和 <code>ToolDef</code> 类型：</p>
+<pre><code class="language-typescript">// src/Tool.ts
+type DefaultableToolKeys =
+  | 'isEnabled'
+  | 'isConcurrencySafe'
+  | 'isReadOnly'
+  | 'isDestructive'
+  | 'checkPermissions'
+  | 'toAutoClassifierInput'
+  | 'userFacingName'
+
+export type ToolDef&lt;Input, Output, P&gt; =
+  Omit&lt;Tool&lt;Input, Output, P&gt;, DefaultableToolKeys&gt; &amp;
+  Partial&lt;Pick&lt;Tool&lt;Input, Output, P&gt;, DefaultableToolKeys&gt;&gt;
+</code></pre>
+<p><code>ToolDef</code> 将 <code>Tool</code> 接口中的 7 个方法标记为可选。<code>buildTool()</code> 函数填充默认值：</p>
+<pre><code class="language-typescript">const TOOL_DEFAULTS = {
+  isEnabled: () =&gt; true,
+  isConcurrencySafe: (_input?: unknown) =&gt; false,  // 假设不安全
+  isReadOnly: (_input?: unknown) =&gt; false,           // 假设有写操作
+  isDestructive: (_input?: unknown) =&gt; false,
+  checkPermissions: (input, _ctx?) =&gt;
+    Promise.resolve({ behavior: 'allow', updatedInput: input }),
+  toAutoClassifierInput: (_input?: unknown) =&gt; '',
+  userFacingName: (_input?: unknown) =&gt; '',
+}
+
+export function buildTool&lt;D extends AnyToolDef&gt;(def: D): BuiltTool&lt;D&gt; {
+  return {
+    ...TOOL_DEFAULTS,
+    userFacingName: () =&gt; def.name,
+    ...def,
+  } as BuiltTool&lt;D&gt;
+}
+</code></pre>
+<p>注意默认值的<strong>安全倾向</strong>设计：</p>
+<ul>
+<li><code>isConcurrencySafe</code> 默认 <code>false</code>：假设工具不能并发执行（保守策略）</li>
+<li><code>isReadOnly</code> 默认 <code>false</code>：假设工具有写操作（需要权限检查）</li>
+<li><code>checkPermissions</code> 默认 <code>allow</code>：将权限决策交给通用权限系统</li>
+</ul>
+<p>这种“安全默认“（fail-closed）的设计原则意味着：忘记实现某个方法不会导致安全漏洞，只会导致功能受限。</p>
+<h3 id="builttool-的类型级别-spread"><a class="header" href="#builttool-的类型级别-spread">BuiltTool 的类型级别 spread</a></h3>
+<p><code>BuiltTool&lt;D&gt;</code> 的类型定义模拟了运行时的 <code>{ ...TOOL_DEFAULTS, ...def }</code> 操作：</p>
+<pre><code class="language-typescript">type BuiltTool&lt;D&gt; = Omit&lt;D, DefaultableToolKeys&gt; &amp; {
+  [K in DefaultableToolKeys]-?: K extends keyof D
+    ? undefined extends D[K]
+      ? ToolDefaults[K]     // D 中可选 → 使用默认值类型
+      : D[K]                 // D 中必填 → 使用 D 的类型
+    : ToolDefaults[K]        // D 中不存在 → 使用默认值类型
+}
+</code></pre>
+<p>这段类型体操的核心是条件类型 <code>undefined extends D[K]</code> —— 它区分了“属性存在但可选“和“属性存在且必填“。这确保了当工具定义覆盖了某个默认方法时，返回类型精确反映覆盖后的签名。</p>
+<h2 id="35-判别联合类型"><a class="header" href="#35-判别联合类型">3.5 判别联合类型</a></h2>
+<p>Claude Code 的消息系统和权限系统大量使用判别联合（Discriminated Union），通过 <code>type</code> 字段区分不同的消息/决策变体。</p>
+<h3 id="权限决策系统"><a class="header" href="#权限决策系统">权限决策系统</a></h3>
+<p><code>PermissionResult</code> 是一个经典的判别联合：</p>
+<pre><code class="language-typescript">// src/types/permissions.ts
+export type PermissionResult&lt;Input&gt; =
+  | PermissionAllowDecision&lt;Input&gt;
+  | PermissionAskDecision&lt;Input&gt;
+  | PermissionDenyDecision
+  | { behavior: 'passthrough'; message: string; /* ... */ }
+</code></pre>
+<p>每个变体通过 <code>behavior</code> 字段判别：</p>
+<pre><code class="language-typescript">export type PermissionAllowDecision&lt;Input&gt; = {
+  behavior: 'allow'
+  updatedInput?: Input       // 可能修改后的输入
+  userModified?: boolean     // 用户是否手动修改
+  acceptFeedback?: string    // 用户接受时的反馈
+  contentBlocks?: ContentBlockParam[]
+}
+
+export type PermissionAskDecision&lt;Input&gt; = {
+  behavior: 'ask'
+  message: string            // 询问用户的消息
+  suggestions?: PermissionUpdate[]  // 建议的权限更新
+  pendingClassifierCheck?: PendingClassifierCheck  // 异步分类器检查
+}
+
+export type PermissionDenyDecision = {
+  behavior: 'deny'
+  message: string            // 拒绝原因
+  decisionReason: PermissionDecisionReason  // 必填：必须说明原因
+}
+</code></pre>
+<p>注意类型设计中的<strong>不对称性</strong>：</p>
+<ul>
+<li><code>allow</code> 的 <code>decisionReason</code> 是可选的（允许不需要解释）</li>
+<li><code>deny</code> 的 <code>decisionReason</code> 是<strong>必填的</strong>（拒绝必须给出原因）</li>
+<li><code>ask</code> 可以携带 <code>suggestions</code>（建议用户如何修改权限规则）</li>
+</ul>
+<p>消费代码中的 narrowing：</p>
+<pre><code class="language-typescript">const result = await checkPermissions(input, context)
+
+switch (result.behavior) {
+  case 'allow':
+    // TypeScript 知道 result 是 PermissionAllowDecision
+    const finalInput = result.updatedInput ?? input
+    break
+  case 'ask':
+    // TypeScript 知道 result 是 PermissionAskDecision
+    showPrompt(result.message, result.suggestions)
+    break
+  case 'deny':
+    // TypeScript 知道 result 是 PermissionDenyDecision
+    logDenial(result.decisionReason)  // decisionReason 保证存在
+    break
+}
+</code></pre>
+<h3 id="permissiondecisionreason-的深层判别"><a class="header" href="#permissiondecisionreason-的深层判别">PermissionDecisionReason 的深层判别</a></h3>
+<p>权限决策的原因本身也是一个判别联合，使用 <code>type</code> 字段：</p>
+<pre><code class="language-typescript">export type PermissionDecisionReason =
+  | { type: 'rule'; rule: PermissionRule }
+  | { type: 'mode'; mode: PermissionMode }
+  | { type: 'subcommandResults'; reasons: Map&lt;string, PermissionResult&gt; }
+  | { type: 'hook'; hookName: string; hookSource?: string; reason?: string }
+  | { type: 'asyncAgent'; reason: string }
+  | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'dangerouslyDisableSandbox' }
+  | { type: 'classifier'; classifier: string; reason: string }
+  | { type: 'workingDir'; reason: string }
+  | { type: 'safetyCheck'; reason: string; classifierApprovable: boolean }
+  | { type: 'other'; reason: string }
+</code></pre>
+<p>这个类型精确表达了“一个权限决策可能由 10 种不同的原因产生“。<code>subcommandResults</code> 变体甚至包含了一个递归的 <code>PermissionResult</code> Map，用于表示 Bash 命令中子命令的权限结果组合。</p>
+<p><code>safetyCheck</code> 变体中的 <code>classifierApprovable</code> 布尔字段是一个精细的安全决策标记：</p>
+<pre><code class="language-typescript">{
+  type: 'safetyCheck'
+  reason: string
+  // 当为 true 时，auto 模式允许分类器评估而非强制弹窗
+  // 对于敏感文件路径（.claude/, .git/, shell configs）为 true
+  // 对于 Windows 路径绕过和跨机器 bridge 消息为 false
+  classifierApprovable: boolean
+}
+</code></pre>
+<h3 id="工具搜索与读取操作的类型判别"><a class="header" href="#工具搜索与读取操作的类型判别">工具搜索与读取操作的类型判别</a></h3>
+<p><code>Tool</code> 接口中的 <code>isSearchOrReadCommand</code> 方法返回一个结构化的操作分类：</p>
+<pre><code class="language-typescript">isSearchOrReadCommand?(input: z.infer&lt;Input&gt;): {
+  isSearch: boolean    // grep, find, glob 模式
+  isRead: boolean      // cat, head, tail, 文件读取
+  isList?: boolean     // ls, tree, du
+}
+</code></pre>
+<p>这个返回类型不是布尔值，而是一个三维的操作分类。UI 层使用它来决定是否将连续的搜索/读取操作折叠为紧凑显示。<code>isList</code> 标记为可选是因为它是后加的 —— <code>isSearch</code> 和 <code>isRead</code> 在初始设计中就存在。</p>
+<h3 id="command-类型的联合设计"><a class="header" href="#command-类型的联合设计">Command 类型的联合设计</a></h3>
+<p><code>src/types/command.ts</code> 中的 <code>Command</code> 类型展示了另一种判别联合模式 —— <strong>基类 + 变体联合</strong>：</p>
+<pre><code class="language-typescript">export type Command = CommandBase &amp;
+  (PromptCommand | LocalCommand | LocalJSXCommand)
+</code></pre>
+<p><code>CommandBase</code> 定义了所有命令共享的属性（name, description, isEnabled 等），而联合部分通过 <code>type</code> 字段区分三种执行模式：</p>
+<pre><code class="language-typescript">type PromptCommand = {
+  type: 'prompt'             // 发送给模型执行
+  progressMessage: string
+  getPromptForCommand(args: string, context: ToolUseContext):
+    Promise&lt;ContentBlockParam[]&gt;
+}
+
+type LocalCommand = {
+  type: 'local'              // 本地执行（无 UI）
+  supportsNonInteractive: boolean
+  load: () =&gt; Promise&lt;LocalCommandModule&gt;
+}
+
+type LocalJSXCommand = {
+  type: 'local-jsx'          // 本地执行（有 UI）
+  load: () =&gt; Promise&lt;LocalJSXCommandModule&gt;
+}
+</code></pre>
+<p><code>PromptCommand</code> 是斜杠命令（如技能和插件）的类型：它们被转换为 prompt 发送给模型。<code>LocalCommand</code> 和 <code>LocalJSXCommand</code> 是本地执行的命令：前者是纯逻辑命令，后者需要渲染 React 组件。</p>
+<p>注意 <code>load()</code> 方法的延迟加载设计：命令的实现代码只在用户实际调用时才加载，避免了注册数十个命令带来的启动开销。</p>
+<h2 id="36-类型系统作为架构文档"><a class="header" href="#36-类型系统作为架构文档">3.6 类型系统作为架构文档</a></h2>
+<p>回顾本章讨论的类型设计，可以提炼出几条贯穿整个代码库的设计原则：</p>
+<pre><code class="language-mermaid">graph TD
+    P1["原则 1：类型即文档&lt;br/&gt;品牌类型标注语义意图"] --&gt; Practice["实践"]
+    P2["原则 2：类型即契约&lt;br/&gt;Zod + 编译时断言保证一致性"] --&gt; Practice
+    P3["原则 3：类型即边界&lt;br/&gt;纯类型文件打破循环依赖"] --&gt; Practice
+    P4["原则 4：类型即安全&lt;br/&gt;判别联合强制穷举处理"] --&gt; Practice
+    P5["原则 5：类型即默认&lt;br/&gt;buildTool 的安全默认值"] --&gt; Practice
+
+    Practice --&gt; Code["1900 文件的&lt;br/&gt;类型安全代码库"]
+</code></pre>
+<p><strong>1. 使不合法状态不可表示</strong>（Make illegal states unrepresentable）。<code>SessionId</code> 和 <code>AgentId</code> 的品牌类型使得混淆两者在编译时就会被捕获。<code>PermissionDenyDecision</code> 的必填 <code>decisionReason</code> 使得“无理由拒绝“在类型层面不可能。</p>
+<p><strong>2. 用编译时断言桥接两个类型世界</strong>。当 Zod schema 和 SDK 类型并存时，<code>Assert&lt;IsEqual&lt;A, B&gt;&gt;</code> 确保它们永远一致。</p>
+<p><strong>3. 将运行时验证与静态类型统一</strong>。Zod 的 <code>z.infer&lt;T&gt;</code> 让 schema 和类型共享同一个真相来源，避免了手动维护两份定义的同步问题。</p>
+<p><strong>4. 通过纯类型文件实现架构解耦</strong>。<code>types/</code> 目录不包含运行时代码，这使得它可以被任何模块安全导入，而不会引入运行时依赖。</p>
+<p><strong>5. 安全默认与显式覆盖</strong>。<code>buildTool()</code> 的默认值选择了保守的安全策略（不可并发、非只读、交由通用权限系统），工具实现者必须显式声明更宽松的行为。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>Claude Code 的类型系统不是简单的“给 JavaScript 加类型注解“。它是一个精心设计的、多层次的类型架构：</p>
+<ol>
+<li><strong>底层</strong>：品牌类型和 DeepImmutable 提供编译时安全保障</li>
+<li><strong>中层</strong>：纯类型文件和重新导出解决循环依赖和模块边界问题</li>
+<li><strong>上层</strong>：Zod schema 和判别联合实现运行时验证和穷举性检查</li>
+<li><strong>工具层</strong>：泛型 Tool 接口和 buildTool 工厂函数统一了 40+ 工具的类型契约</li>
+</ol>
+<p>这套类型系统的设计使得一个 1900 文件的代码库能够在快速迭代中保持结构完整性 —— 类型检查器充当了永不休息的架构审查员。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part1-foundation/ch02-bootstrap.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part2-core-engine/ch04-query-engine.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part1-foundation/ch02-bootstrap.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part2-core-engine/ch04-query-engine.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

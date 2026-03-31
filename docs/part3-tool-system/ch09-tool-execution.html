@@ -1,0 +1,925 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 9 章：工具执行管线 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part3-tool-system/ch09-tool-execution.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-9-章工具执行管线"><a class="header" href="#第-9-章工具执行管线">第 9 章：工具执行管线</a></h1>
+<blockquote>
+<p>“并发不是并行，但并发能让并行成为可能。” —— Rob Pike</p>
+</blockquote>
+<p>当模型在一次响应中调用多个工具时，Claude Code 面临一个核心调度问题：哪些工具可以并行？哪些必须串行？如果一个工具失败了，正在运行的兄弟工具怎么办？工具输出太大怎么处理？</p>
+<p>本章深入分析 <code>StreamingToolExecutor</code> 并发调度器和 <code>toolExecution.ts</code> 执行管线的实现，揭示工具执行从队列入队到结果产出的完整数据通路。</p>
+<h2 id="91-streamingtoolexecutor--并发调度器的状态机"><a class="header" href="#91-streamingtoolexecutor--并发调度器的状态机">9.1 StreamingToolExecutor —— 并发调度器的状态机</a></h2>
+<h3 id="911-设计挑战"><a class="header" href="#911-设计挑战">9.1.1 设计挑战</a></h3>
+<p>Claude 模型以流式方式生成响应，工具调用也是逐步“流入“的——模型可能先生成第一个工具调用的参数，接着是第二个，然后是第三个。<code>StreamingToolExecutor</code> 需要在工具调用流入的同时就开始执行，而不是等到所有工具调用都生成完毕才开始。</p>
+<p>这带来了几个核心挑战：</p>
+<ol>
+<li>工具调用的到达是渐进的，需要即时调度</li>
+<li>并发安全的工具应该并行执行以提高效率</li>
+<li>非并发安全的工具必须独占执行</li>
+<li>结果必须按到达顺序输出（保持确定性）</li>
+<li>一个工具的失败（特别是 Bash）应该取消正在运行的兄弟工具</li>
+</ol>
+<h3 id="912-trackedtool-与状态机"><a class="header" href="#912-trackedtool-与状态机">9.1.2 TrackedTool 与状态机</a></h3>
+<p>每个进入调度器的工具被封装为 <code>TrackedTool</code>：</p>
+<pre><code class="language-typescript">// src/services/tools/StreamingToolExecutor.ts
+type ToolStatus = 'queued' | 'executing' | 'completed' | 'yielded'
+
+type TrackedTool = {
+  id: string
+  block: ToolUseBlock
+  assistantMessage: AssistantMessage
+  status: ToolStatus
+  isConcurrencySafe: boolean
+  promise?: Promise&lt;void&gt;
+  results?: Message[]
+  pendingProgress: Message[]
+  contextModifiers?: Array&lt;(context: ToolUseContext) =&gt; ToolUseContext&gt;
+}
+</code></pre>
+<p>工具在其生命周期内经历四个状态：</p>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; queued: addTool()
+    queued --&gt; executing: canExecuteTool() = true
+    queued --&gt; completed: 已中止（合成错误）
+    executing --&gt; completed: 执行完成
+    completed --&gt; yielded: getCompletedResults()
+    yielded --&gt; [*]
+
+    note right of queued
+        等待调度。
+        可能因为有非并发工具
+        正在执行而阻塞。
+    end note
+
+    note right of executing
+        正在运行。
+        进度消息被立即转发。
+    end note
+
+    note right of completed
+        执行完成，结果已缓冲。
+        等待按序输出。
+    end note
+
+    note right of yielded
+        结果已输出给调用方。
+        终态。
+    end note
+</code></pre>
+<h3 id="913-调度器初始化"><a class="header" href="#913-调度器初始化">9.1.3 调度器初始化</a></h3>
+<pre><code class="language-typescript">export class StreamingToolExecutor {
+  private tools: TrackedTool[] = []
+  private toolUseContext: ToolUseContext
+  private hasErrored = false
+  private erroredToolDescription = ''
+  private siblingAbortController: AbortController
+  private discarded = false
+  private progressAvailableResolve?: () =&gt; void
+
+  constructor(
+    private readonly toolDefinitions: Tools,
+    private readonly canUseTool: CanUseToolFn,
+    toolUseContext: ToolUseContext,
+  ) {
+    this.toolUseContext = toolUseContext
+    this.siblingAbortController = createChildAbortController(
+      toolUseContext.abortController,
+    )
+  }
+}
+</code></pre>
+<p>注意 <code>siblingAbortController</code> 的设计：它是 <code>toolUseContext.abortController</code> 的子控制器。当一个 Bash 工具出错时，<code>siblingAbortController</code> 被中止，这会终止所有正在执行的兄弟工具的子进程，但<strong>不会</strong>中止父控制器——查询循环不会因此结束。</p>
+<h3 id="914-工具入队--addtool"><a class="header" href="#914-工具入队--addtool">9.1.4 工具入队 —— addTool</a></h3>
+<pre><code class="language-typescript">addTool(block: ToolUseBlock, assistantMessage: AssistantMessage): void {
+  const toolDefinition = findToolByName(this.toolDefinitions, block.name)
+  if (!toolDefinition) {
+    // 未知工具：立即标记为 completed，返回错误
+    this.tools.push({
+      id: block.id, block, assistantMessage,
+      status: 'completed',
+      isConcurrencySafe: true,
+      pendingProgress: [],
+      results: [createUserMessage({
+        content: [{
+          type: 'tool_result',
+          content: `Error: No such tool available: ${block.name}`,
+          is_error: true, tool_use_id: block.id,
+        }],
+      })],
+    })
+    return
+  }
+
+  // 解析输入以确定并发安全性
+  const parsedInput = toolDefinition.inputSchema.safeParse(block.input)
+  const isConcurrencySafe = parsedInput?.success
+    ? (() =&gt; {
+        try {
+          return Boolean(toolDefinition.isConcurrencySafe(parsedInput.data))
+        } catch {
+          return false  // 解析失败 -&gt; 假定不安全
+        }
+      })()
+    : false  // schema 验证失败 -&gt; 假定不安全
+
+  this.tools.push({
+    id: block.id, block, assistantMessage,
+    status: 'queued', isConcurrencySafe,
+    pendingProgress: [],
+  })
+
+  void this.processQueue()
+}
+</code></pre>
+<p>几个关键设计点：</p>
+<ol>
+<li><strong>未知工具快速失败。</strong> 找不到的工具立即被标记为 <code>completed</code> 并赋予错误结果，不进入队列。</li>
+<li><strong>并发安全性是输入相关的。</strong> <code>isConcurrencySafe</code> 在此时就被计算并固定，因为它取决于具体的输入参数。</li>
+<li><strong>失败关闭。</strong> schema 解析失败或 <code>isConcurrencySafe</code> 抛异常时，默认为 <code>false</code>。</li>
+</ol>
+<h3 id="915-调度决策--canexecutetool"><a class="header" href="#915-调度决策--canexecutetool">9.1.5 调度决策 —— canExecuteTool</a></h3>
+<pre><code class="language-typescript">private canExecuteTool(isConcurrencySafe: boolean): boolean {
+  const executingTools = this.tools.filter(t =&gt; t.status === 'executing')
+  return (
+    executingTools.length === 0 ||
+    (isConcurrencySafe &amp;&amp; executingTools.every(t =&gt; t.isConcurrencySafe))
+  )
+}
+</code></pre>
+<p>这个函数定义了核心调度规则，可以用一个简洁的真值表表达：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>正在执行的工具</th><th>新工具类型</th><th>能否执行</th></tr>
+</thead>
+<tbody>
+<tr><td>无</td><td>任何</td><td>是</td></tr>
+<tr><td>全部并发安全</td><td>并发安全</td><td>是</td></tr>
+<tr><td>全部并发安全</td><td>非并发安全</td><td>否</td></tr>
+<tr><td>任何非并发安全</td><td>任何</td><td>否</td></tr>
+</tbody>
+</table>
+</div>
+<p>简言之：<strong>并发安全的工具可以彼此并行，但非并发安全的工具必须独占执行。</strong></p>
+<h3 id="916-队列处理--processqueue"><a class="header" href="#916-队列处理--processqueue">9.1.6 队列处理 —— processQueue</a></h3>
+<pre><code class="language-typescript">private async processQueue(): Promise&lt;void&gt; {
+  for (const tool of this.tools) {
+    if (tool.status !== 'queued') continue
+
+    if (this.canExecuteTool(tool.isConcurrencySafe)) {
+      await this.executeTool(tool)
+    } else {
+      // 非并发工具无法执行时，停止扫描后续工具
+      if (!tool.isConcurrencySafe) break
+    }
+  }
+}
+</code></pre>
+<p>注意 <code>break</code> 的条件：当遇到一个无法执行的<strong>非并发安全</strong>工具时，停止扫描。这是因为非并发工具必须按顺序执行——后续的工具（无论是否并发安全）都不能跳过它先执行。</p>
+<p>但如果无法执行的是并发安全工具（因为当前有非并发工具在执行），循环会继续扫描——可能后面还有其他需要处理的工具。</p>
+<h3 id="917-并发执行时序图"><a class="header" href="#917-并发执行时序图">9.1.7 并发执行时序图</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant M as 模型流
+    participant STE as StreamingToolExecutor
+    participant T1 as GrepTool (并发安全)
+    participant T2 as GlobTool (并发安全)
+    participant T3 as FileEditTool (非并发)
+
+    M-&gt;&gt;STE: addTool(Grep, ...)
+    STE-&gt;&gt;STE: canExecuteTool(true) = true
+    STE-&gt;&gt;T1: executeTool (并行启动)
+    M-&gt;&gt;STE: addTool(Glob, ...)
+    STE-&gt;&gt;STE: canExecuteTool(true) = true
+    Note right of STE: 当前执行: [Grep(并发), Glob(并发)]
+    STE-&gt;&gt;T2: executeTool (并行启动)
+    M-&gt;&gt;STE: addTool(FileEdit, ...)
+    STE-&gt;&gt;STE: canExecuteTool(false) = false
+    Note right of STE: FileEdit 进入 queued 等待
+
+    T1--&gt;&gt;STE: 完成
+    T2--&gt;&gt;STE: 完成
+    STE-&gt;&gt;STE: processQueue() 重新扫描
+    STE-&gt;&gt;STE: canExecuteTool(false) = true
+    STE-&gt;&gt;T3: executeTool (独占启动)
+    T3--&gt;&gt;STE: 完成
+    STE--&gt;&gt;M: 按序输出所有结果
+</code></pre>
+<h2 id="92-并发安全性--isconcurrencysafe-的语义和调度规则"><a class="header" href="#92-并发安全性--isconcurrencysafe-的语义和调度规则">9.2 并发安全性 —— isConcurrencySafe 的语义和调度规则</a></h2>
+<h3 id="921-工具的并发安全分类"><a class="header" href="#921-工具的并发安全分类">9.2.1 工具的并发安全分类</a></h3>
+<p>在 Claude Code 的工具集中，并发安全属性的分布如下：</p>
+<p><strong>始终并发安全：</strong></p>
+<ul>
+<li><code>GlobTool</code> —— 纯文件名搜索，不修改任何状态</li>
+<li><code>GrepTool</code> —— 纯内容搜索</li>
+<li><code>FileReadTool</code> —— 纯读取</li>
+<li><code>WebFetchTool</code> —— HTTP GET，无副作用</li>
+<li><code>TaskCreateTool</code>/<code>TaskGetTool</code>/<code>TaskUpdateTool</code>/<code>TaskListTool</code> —— 任务操作互相独立</li>
+</ul>
+<p><strong>始终非并发安全：</strong></p>
+<ul>
+<li><code>FileEditTool</code> —— 修改文件内容</li>
+<li><code>FileWriteTool</code> —— 创建/覆写文件</li>
+</ul>
+<p><strong>输入相关的并发安全性：</strong></p>
+<ul>
+<li><code>BashTool</code> —— 只有确认为只读的命令才并发安全</li>
+</ul>
+<p>BashTool 的实现值得细看：</p>
+<pre><code class="language-typescript">// BashTool
+isConcurrencySafe(input) {
+  return this.isReadOnly?.(input) ?? false
+},
+isReadOnly(input) {
+  const compoundCommandHasCd = commandHasAnyCd(input.command)
+  const result = checkReadOnlyConstraints(input, compoundCommandHasCd)
+  return result.behavior === 'allow'
+},
+</code></pre>
+<p>这意味着 <code>ls -la</code> 会被并发执行（只读），但 <code>git push</code> 会独占执行（写操作）。</p>
+<h3 id="922-错误级联--bash-特殊待遇"><a class="header" href="#922-错误级联--bash-特殊待遇">9.2.2 错误级联 —— Bash 特殊待遇</a></h3>
+<p>当工具执行失败时，<code>StreamingToolExecutor</code> 对 Bash 工具有特殊处理：</p>
+<pre><code class="language-typescript">// 在 executeTool 中
+if (isErrorResult) {
+  thisToolErrored = true
+  // 只有 Bash 错误会取消兄弟工具
+  if (tool.block.name === BASH_TOOL_NAME) {
+    this.hasErrored = true
+    this.erroredToolDescription = this.getToolDescription(tool)
+    this.siblingAbortController.abort('sibling_error')
+  }
+}
+</code></pre>
+<p>源码注释解释了原因：</p>
+<blockquote>
+<p><em>“Only Bash errors cancel siblings. Bash commands often have implicit dependency chains (e.g. mkdir fails -&gt; subsequent commands pointless). Read/WebFetch/etc are independent —— one failure shouldn’t nuke the rest.”</em></p>
+</blockquote>
+<p>这是一个务实的设计决策：Bash 命令之间经常有隐式依赖（前一个创建目录，后一个在该目录中操作），所以一个 Bash 命令失败通常意味着后续 Bash 命令也会失败。但 Read、Grep 等独立工具彼此无关，一个失败不应影响其他。</p>
+<h3 id="923-中断行为--interruptbehavior"><a class="header" href="#923-中断行为--interruptbehavior">9.2.3 中断行为 —— interruptBehavior</a></h3>
+<p>当用户在工具执行过程中提交新消息时，<code>StreamingToolExecutor</code> 需要决定每个工具的命运：</p>
+<pre><code class="language-typescript">private getToolInterruptBehavior(tool: TrackedTool): 'cancel' | 'block' {
+  const definition = findToolByName(this.toolDefinitions, tool.block.name)
+  if (!definition?.interruptBehavior) return 'block'  // 默认：阻塞
+  try {
+    return definition.interruptBehavior()
+  } catch {
+    return 'block'
+  }
+}
+</code></pre>
+<ul>
+<li><code>'cancel'</code> —— 停止工具，丢弃结果（用于可以安全中断的工具）</li>
+<li><code>'block'</code> —— 继续运行，新消息等待（默认行为）</li>
+</ul>
+<p><code>updateInterruptibleState</code> 方法维护一个全局标志，告诉 UI 是否当前有可中断的工具在运行：</p>
+<pre><code class="language-typescript">private updateInterruptibleState(): void {
+  const executing = this.tools.filter(t =&gt; t.status === 'executing')
+  this.toolUseContext.setHasInterruptibleToolInProgress?.(
+    executing.length &gt; 0 &amp;&amp;
+    executing.every(t =&gt; this.getToolInterruptBehavior(t) === 'cancel'),
+  )
+}
+</code></pre>
+<p>只有当所有正在执行的工具都是 <code>'cancel'</code> 类型时，UI 才会显示“可中断“状态。</p>
+<h2 id="93-工具结果截断--maxresultsizechars-与磁盘持久化"><a class="header" href="#93-工具结果截断--maxresultsizechars-与磁盘持久化">9.3 工具结果截断 —— maxResultSizeChars 与磁盘持久化</a></h2>
+<h3 id="931-问题背景"><a class="header" href="#931-问题背景">9.3.1 问题背景</a></h3>
+<p>工具输出可能非常大——一次 <code>grep</code> 可能返回数千行匹配，一个 <code>bash</code> 命令可能产生 MB 级的日志。将所有这些塞入对话消息会迅速耗尽上下文窗口。</p>
+<p>Claude Code 的解决方案是<strong>磁盘持久化</strong>：当工具输出超过阈值时，完整结果保存到磁盘文件，模型只看到一个预览和文件路径。</p>
+<h3 id="932-持久化阈值"><a class="header" href="#932-持久化阈值">9.3.2 持久化阈值</a></h3>
+<p>每个工具通过 <code>maxResultSizeChars</code> 声明自己的阈值：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>工具</th><th>maxResultSizeChars</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>FileReadTool</td><td>Infinity</td><td>永不持久化（避免循环读取）</td></tr>
+<tr><td>BashTool</td><td>30,000</td><td>30K 字符</td></tr>
+<tr><td>GrepTool</td><td>20,000</td><td>20K 字符</td></tr>
+<tr><td>FileEditTool</td><td>100,000</td><td>100K 字符</td></tr>
+<tr><td>GlobTool</td><td>100,000</td><td>100K 字符</td></tr>
+<tr><td>WebFetchTool</td><td>100,000</td><td>100K 字符</td></tr>
+</tbody>
+</table>
+</div>
+<p>实际生效的阈值由 <code>getPersistenceThreshold</code> 函数决定：</p>
+<pre><code class="language-typescript">// src/utils/toolResultStorage.ts
+export function getPersistenceThreshold(
+  toolName: string,
+  declaredMaxResultSizeChars: number,
+): number {
+  // Infinity = 硬性豁免（Read 工具）
+  if (!Number.isFinite(declaredMaxResultSizeChars)) {
+    return declaredMaxResultSizeChars
+  }
+  // GrowthBook 覆盖（A/B 测试用）
+  const overrides = getFeatureValue_CACHED_MAY_BE_STALE(
+    'tengu_satin_quoll', {}
+  )
+  const override = overrides?.[toolName]
+  if (typeof override === 'number' &amp;&amp; Number.isFinite(override) &amp;&amp; override &gt; 0) {
+    return override
+  }
+  // 取 min(工具声明值, 全局默认值)
+  return Math.min(declaredMaxResultSizeChars, DEFAULT_MAX_RESULT_SIZE_CHARS)
+}
+</code></pre>
+<p>这里有三层：</p>
+<ol>
+<li><code>Infinity</code> 豁免——Read 工具永远不会被持久化</li>
+<li>GrowthBook 远程配置覆盖——可以动态调整某个工具的阈值</li>
+<li>取 min(工具声明, 全局默认) —— 确保不超过全局上限</li>
+</ol>
+<h3 id="933-持久化流程"><a class="header" href="#933-持久化流程">9.3.3 持久化流程</a></h3>
+<pre><code class="language-typescript">// src/utils/toolResultStorage.ts
+export async function persistToolResult(
+  content: NonNullable&lt;ToolResultBlockParam['content']&gt;,
+  toolUseId: string,
+): Promise&lt;PersistedToolResult | PersistToolResultError&gt; {
+  await ensureToolResultsDir()
+  const filepath = getToolResultPath(toolUseId, isJson)
+  const contentStr = isJson ? jsonStringify(content) : content
+
+  // 使用 'wx' 标志 -- 如果文件已存在则跳过
+  try {
+    await writeFile(filepath, contentStr, { encoding: 'utf-8', flag: 'wx' })
+  } catch (error) {
+    if (getErrnoCode(error) !== 'EEXIST') {
+      return { error: getFileSystemErrorMessage(toError(error)) }
+    }
+    // EEXIST: 之前的 turn 已经持久化过
+  }
+
+  const { preview, hasMore } = generatePreview(contentStr, PREVIEW_SIZE_BYTES)
+  return { filepath, originalSize: contentStr.length, isJson, preview, hasMore }
+}
+</code></pre>
+<p><code>'wx'</code> 标志是一个性能优化——<code>tool_use_id</code> 是唯一的，同一个 ID 的内容是确定性的。使用 <code>wx</code>（独占创建）避免了重复写入，特别是在 microcompact（上下文压缩）重放原始消息时。</p>
+<p>持久化后的结果消息格式：</p>
+<pre><code class="language-typescript">export function buildLargeToolResultMessage(result: PersistedToolResult): string {
+  let message = `${PERSISTED_OUTPUT_TAG}\n`
+  message += `Output too large (${formatFileSize(result.originalSize)}). `
+  message += `Full output saved to: ${result.filepath}\n\n`
+  message += `Preview (first ${formatFileSize(PREVIEW_SIZE_BYTES)}):\n`
+  message += result.preview
+  message += result.hasMore ? '\n...\n' : '\n'
+  message += PERSISTED_OUTPUT_CLOSING_TAG
+  return message
+}
+</code></pre>
+<p>模型看到的是预览（前 2000 字节）和完整输出的文件路径。如果需要查看更多内容，模型可以使用 FileReadTool 读取持久化文件。</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[工具返回结果] --&gt; B{结果大小 &gt; 阈值?}
+    B --&gt;|否| C[直接包含在消息中]
+    B --&gt;|是| D[保存到磁盘]
+    D --&gt; E[生成预览 2000 字节]
+    E --&gt; F[构建引用消息]
+    F --&gt; G[模型看到预览 + 文件路径]
+    G --&gt; H{模型需要更多?}
+    H --&gt;|是| I[调用 FileReadTool 读取文件]
+    H --&gt;|否| J[继续对话]
+
+    style D fill:#ff9,stroke:#333
+    style G fill:#9f9,stroke:#333
+</code></pre>
+<h2 id="94-工具钩子--prepost-拦截器"><a class="header" href="#94-工具钩子--prepost-拦截器">9.4 工具钩子 —— Pre/Post 拦截器</a></h2>
+<h3 id="941-钩子系统概览"><a class="header" href="#941-钩子系统概览">9.4.1 钩子系统概览</a></h3>
+<p>Claude Code 的工具执行管线在工具调用前后插入了两类钩子：</p>
+<ul>
+<li><strong>PreToolUse</strong> —— 工具执行前触发，可以修改输入、阻止执行、附加上下文</li>
+<li><strong>PostToolUse</strong> —— 工具执行后触发，可以修改输出、阻止继续</li>
+</ul>
+<p>这些钩子通过 <code>toolHooks.ts</code> 中的函数调度：</p>
+<pre><code class="language-typescript">// src/services/tools/toolHooks.ts
+export async function* runPreToolUseHooks(
+  toolUseContext: ToolUseContext,
+  tool: Tool,
+  processedInput: Record&lt;string, unknown&gt;,
+  toolUseID: string,
+  messageId: string,
+  // ...
+): AsyncGenerator&lt;PreToolHookResult&gt; {
+  for await (const result of executePreToolHooks(
+    tool.name, toolUseID, processedInput,
+    toolUseContext, permissionMode,
+    toolUseContext.abortController.signal,
+  )) {
+    // 处理各种钩子结果...
+  }
+}
+</code></pre>
+<h3 id="942-pretooluse-钩子的结果类型"><a class="header" href="#942-pretooluse-钩子的结果类型">9.4.2 PreToolUse 钩子的结果类型</a></h3>
+<p>PreToolUse 钩子可以产生多种类型的结果：</p>
+<pre><code class="language-typescript">// toolExecution.ts 中处理的结果类型
+switch (result.type) {
+  case 'message':         // 钩子产生的消息（进度或附件）
+  case 'hookPermissionResult':  // 钩子做出的权限决策
+  case 'hookUpdatedInput':      // 钩子修改了输入
+  case 'preventContinuation':   // 钩子要求停止
+  case 'stopReason':            // 停止原因
+  case 'additionalContext':     // 额外上下文
+  case 'stop':                  // 立即停止
+}
+</code></pre>
+<p><strong>hookPermissionResult</strong> 是最有趣的——钩子可以替代标准权限系统做出决策。这在 CI/CD 环境中特别有用，自定义钩子可以根据项目规则自动批准或拒绝工具调用。</p>
+<p><strong>hookUpdatedInput</strong> 允许钩子在不做权限决策的情况下修改输入。例如，一个钩子可以将相对路径转为绝对路径，或者添加安全标志。</p>
+<h3 id="943-posttooluse-钩子"><a class="header" href="#943-posttooluse-钩子">9.4.3 PostToolUse 钩子</a></h3>
+<pre><code class="language-typescript">export async function* runPostToolUseHooks&lt;Input extends AnyObject, Output&gt;(
+  toolUseContext: ToolUseContext,
+  tool: Tool&lt;Input, Output&gt;,
+  toolUseID: string,
+  messageId: string,
+  toolInput: Record&lt;string, unknown&gt;,
+  toolResponse: Output,
+  // ...
+): AsyncGenerator&lt;PostToolUseHooksResult&lt;Output&gt;&gt; {
+  for await (const result of executePostToolHooks(
+    tool.name, toolUseID, toolInput, toolOutput,
+    toolUseContext, permissionMode,
+    toolUseContext.abortController.signal,
+  )) {
+    // 处理各种钩子结果...
+    // PostToolUse 钩子可以修改 MCP 工具的输出
+    if (result.updatedOutput) {
+      toolOutput = result.updatedOutput
+      yield { updatedMCPToolOutput: toolOutput }
+    }
+  }
+}
+</code></pre>
+<p>PostToolUse 钩子的一个特殊能力是修改 MCP 工具的输出——这对于过滤敏感信息或规范化输出格式非常有用。</p>
+<h3 id="944-钩子执行的性能监控"><a class="header" href="#944-钩子执行的性能监控">9.4.4 钩子执行的性能监控</a></h3>
+<pre><code class="language-typescript">// src/services/tools/toolExecution.ts
+export const HOOK_TIMING_DISPLAY_THRESHOLD_MS = 500
+const SLOW_PHASE_LOG_THRESHOLD_MS = 2000
+
+// 钩子执行后
+const preToolHookDurationMs = Date.now() - preToolHookStart
+if (preToolHookDurationMs &gt;= SLOW_PHASE_LOG_THRESHOLD_MS) {
+  logForDebugging(
+    `Slow PreToolUse hooks: ${preToolHookDurationMs}ms for ${tool.name}`,
+    { level: 'info' },
+  )
+}
+
+// 显示钩子执行摘要
+if (preToolHookDurationMs &gt; HOOK_TIMING_DISPLAY_THRESHOLD_MS) {
+  resultingMessages.push({
+    message: createStopHookSummaryMessage(
+      preToolHookInfos.length, preToolHookInfos,
+      /* ... timing info ... */
+    ),
+  })
+}
+</code></pre>
+<p>当钩子执行时间超过 500ms 时，UI 会显示一个摘要；超过 2000ms 时，会记录调试日志。这帮助用户识别性能瓶颈。</p>
+<h3 id="945-完整的工具执行管线"><a class="header" href="#945-完整的工具执行管线">9.4.5 完整的工具执行管线</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant STE as StreamingToolExecutor
+    participant TE as toolExecution
+    participant Pre as PreToolUse Hooks
+    participant Perm as 权限系统
+    participant Tool as 工具实现
+    participant Post as PostToolUse Hooks
+    participant Persist as 结果持久化
+
+    STE-&gt;&gt;TE: runToolUse(block, msg, canUseTool, ctx)
+    TE-&gt;&gt;TE: findToolByName / 别名回退
+    TE-&gt;&gt;TE: Zod safeParse(input)
+    TE-&gt;&gt;TE: tool.validateInput(input)
+    TE-&gt;&gt;TE: 推测性启动分类器(Bash)
+    TE-&gt;&gt;TE: backfillObservableInput(clone)
+
+    TE-&gt;&gt;Pre: runPreToolUseHooks
+    Pre--&gt;&gt;TE: hookPermissionResult?&lt;br/&gt;hookUpdatedInput?&lt;br/&gt;stop?
+
+    TE-&gt;&gt;Perm: resolveHookPermissionDecision
+    Note right of Perm: hook 决策 &gt; 规则匹配 &gt;&lt;br/&gt; 分类器 &gt; 用户交互
+    Perm--&gt;&gt;TE: allow / deny / ask
+
+    alt 权限拒绝
+        TE--&gt;&gt;STE: 错误消息
+    else 权限允许
+        TE-&gt;&gt;TE: startToolSpan (OTel)
+        TE-&gt;&gt;Tool: tool.call(input, ctx, canUseTool, msg, onProgress)
+        Tool--&gt;&gt;TE: ToolResult { data, newMessages?, contextModifier? }
+
+        TE-&gt;&gt;Post: runPostToolUseHooks
+        Post--&gt;&gt;TE: updatedOutput? / blockingError?
+
+        TE-&gt;&gt;Persist: processToolResultBlock(tool, result, id)
+        Note right of Persist: 大于阈值?&lt;br/&gt;保存到磁盘,&lt;br/&gt;返回预览
+        Persist--&gt;&gt;TE: ToolResultBlockParam
+
+        TE--&gt;&gt;STE: yield MessageUpdate
+    end
+</code></pre>
+<h2 id="95-内容替换预算--contentreplacementstate-的设计"><a class="header" href="#95-内容替换预算--contentreplacementstate-的设计">9.5 内容替换预算 —— ContentReplacementState 的设计</a></h2>
+<h3 id="951-问题上下文窗口膨胀"><a class="header" href="#951-问题上下文窗口膨胀">9.5.1 问题：上下文窗口膨胀</a></h3>
+<p>即使有了 <code>maxResultSizeChars</code> 的单次截断，长对话中累积的工具结果仍然会逐渐填满上下文窗口。每次 API 调用都需要发送完整的消息历史，其中大量旧的工具输出可能已经不再相关。</p>
+<p><code>ContentReplacementState</code> 实现了一个<strong>全局工具结果预算</strong>——在总量超标时，自动将旧的工具结果替换为简短摘要。</p>
+<h3 id="952-核心数据结构"><a class="header" href="#952-核心数据结构">9.5.2 核心数据结构</a></h3>
+<pre><code class="language-typescript">// src/utils/toolResultStorage.ts
+export type ContentReplacementState = {
+  seenIds: Set&lt;string&gt;           // 已经处理过的 tool_use_id
+  replacements: Map&lt;string, string&gt;  // id -&gt; 替换后的内容
+}
+
+export function createContentReplacementState(): ContentReplacementState {
+  return { seenIds: new Set(), replacements: new Map() }
+}
+</code></pre>
+<p>结构非常简洁：</p>
+<ul>
+<li><code>seenIds</code> 跟踪所有已评估过的工具结果 ID</li>
+<li><code>replacements</code> 存储决定替换的结果及其替换内容</li>
+</ul>
+<h3 id="953-替换决策算法"><a class="header" href="#953-替换决策算法">9.5.3 替换决策算法</a></h3>
+<pre><code class="language-typescript">export async function enforceToolResultBudget(
+  messages: Message[],
+  state: ContentReplacementState,
+  skipToolNames: ReadonlySet&lt;string&gt; = new Set(),
+): Promise&lt;{
+  messages: Message[]
+  newlyReplaced: ToolResultReplacementRecord[]
+}&gt; {
+  // 1. 收集所有候选工具结果
+  // 2. 按先前决策分区：已替换 / 已冻结 / 新增
+  // 3. 对新增候选者，根据预算决定是否替换
+  // 4. 应用替换到消息中
+}
+</code></pre>
+<p><code>enforceToolResultBudget</code> 的核心逻辑将候选工具结果分为三类：</p>
+<ol>
+<li><strong>已替换（replaced）</strong> —— 之前的调用已经决定替换，重新应用相同替换</li>
+<li><strong>已冻结（frozen）</strong> —— 已经在 seenIds 中但没有被替换，保持原样</li>
+<li><strong>新增（fresh）</strong> —— 从未见过，需要做替换决策</li>
+</ol>
+<p>对于新增候选者，算法根据剩余预算和结果大小决定是否替换。较旧的、较大的结果优先被替换。</p>
+<h3 id="954-与子代理的交互"><a class="header" href="#954-与子代理的交互">9.5.4 与子代理的交互</a></h3>
+<p><code>ContentReplacementState</code> 在子代理场景下有特殊的行为：</p>
+<pre><code class="language-typescript">// 克隆状态用于缓存共享的 fork
+export function cloneContentReplacementState(
+  source: ContentReplacementState,
+): ContentReplacementState {
+  return {
+    seenIds: new Set(source.seenIds),
+    replacements: new Map(source.replacements),
+  }
+}
+
+// 从消息历史重建状态（用于子代理恢复）
+export function reconstructContentReplacementState(
+  messages: Message[],
+  records: ContentReplacementRecord[],
+  inheritedReplacements?: ReadonlyMap&lt;string, string&gt;,
+): ContentReplacementState {
+  const state = createContentReplacementState()
+  // 收集所有候选 ID
+  // 从 records 重建替换映射
+  // 合并父代理的替换
+  return state
+}
+</code></pre>
+<p><strong>fork 子代理</strong>（如 agentSummary）需要与父代理做出相同的替换决策，以保证 prompt cache 命中。所以它们克隆父代理的状态。</p>
+<p><strong>恢复的子代理</strong>（如后台任务恢复）需要从 transcript 中记录的 <code>ContentReplacementRecord</code> 重建状态，因为它们没有父代理的活跃内存。</p>
+<h3 id="955-预算在-api-调用中的应用"><a class="header" href="#955-预算在-api-调用中的应用">9.5.5 预算在 API 调用中的应用</a></h3>
+<pre><code class="language-typescript">// 在 query.ts 的 API 调用前应用
+export async function applyToolResultBudget(
+  messages: Message[],
+  state: ContentReplacementState | undefined,
+  writeToTranscript?: (records) =&gt; void,
+  skipToolNames?: ReadonlySet&lt;string&gt;,
+): Promise&lt;Message[]&gt; {
+  if (!state) return messages
+  const result = await enforceToolResultBudget(messages, state, skipToolNames)
+  if (result.newlyReplaced.length &gt; 0 &amp;&amp; writeToTranscript) {
+    writeToTranscript(result.newlyReplaced)
+  }
+  return result.messages
+}
+</code></pre>
+<p>这个函数在每次 API 调用前被调用：</p>
+<ol>
+<li>如果功能未启用（<code>state</code> 为 <code>undefined</code>），直接返回原消息</li>
+<li>否则，执行预算强制，可能替换某些工具结果</li>
+<li>新的替换决策被写入 transcript，以便后续恢复</li>
+</ol>
+<h3 id="956-替换预算的工作流"><a class="header" href="#956-替换预算的工作流">9.5.6 替换预算的工作流</a></h3>
+<pre><code class="language-mermaid">flowchart TD
+    A[API 调用前] --&gt; B{ContentReplacementState 存在?}
+    B --&gt;|否| C[直接使用原消息]
+    B --&gt;|是| D[collectCandidatesByMessage]
+    D --&gt; E[partitionByPriorDecision]
+    E --&gt; F[已替换: 重新应用]
+    E --&gt; G[已冻结: 保持原样]
+    E --&gt; H[新增: 评估预算]
+    H --&gt; I{总量 &gt; 预算?}
+    I --&gt;|否| J[标记为 frozen]
+    I --&gt;|是| K[替换为摘要]
+    F --&gt; L[合并结果]
+    G --&gt; L
+    J --&gt; L
+    K --&gt; L
+    L --&gt; M[返回修改后的消息]
+    K --&gt; N[写入 transcript 记录]
+
+    style K fill:#fbb,stroke:#333
+    style J fill:#9f9,stroke:#333
+</code></pre>
+<h2 id="96-完整的工具执行生命周期"><a class="header" href="#96-完整的工具执行生命周期">9.6 完整的工具执行生命周期</a></h2>
+<p>将前面各节的内容综合起来，一个工具从模型生成到结果返回的完整生命周期如下：</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[模型流式生成 tool_use block] --&gt; B[StreamingToolExecutor.addTool]
+    B --&gt; C{findToolByName?}
+    C --&gt;|未找到| D[立即 completed + 错误]
+    C --&gt;|找到| E[计算 isConcurrencySafe]
+    E --&gt; F[状态: queued]
+    F --&gt; G{canExecuteTool?}
+    G --&gt;|否| H[等待]
+    G --&gt;|是| I[状态: executing]
+
+    I --&gt; J[runToolUse]
+    J --&gt; K[Zod schema 验证]
+    K --&gt;|失败| L[返回 InputValidationError]
+    K --&gt;|成功| M[validateInput]
+    M --&gt;|失败| L
+    M --&gt;|成功| N[PreToolUse hooks]
+    N --&gt; O[权限检查]
+    O --&gt;|拒绝| P[返回权限错误]
+    O --&gt;|允许| Q[tool.call 执行]
+    Q --&gt; R[PostToolUse hooks]
+    R --&gt; S[processToolResultBlock]
+    S --&gt; T{结果 &gt; 阈值?}
+    T --&gt;|否| U[直接返回]
+    T --&gt;|是| V[持久化到磁盘]
+    V --&gt; W[返回预览 + 路径]
+
+    U --&gt; X[状态: completed]
+    W --&gt; X
+    L --&gt; X
+    P --&gt; X
+    D --&gt; X
+
+    X --&gt; Y[getCompletedResults]
+    Y --&gt; Z[状态: yielded]
+    Z --&gt; AA[应用 contextModifier]
+    AA --&gt; BB[结果返回 query.ts]
+    BB --&gt; CC[applyToolResultBudget]
+    CC --&gt; DD[发送到 API]
+
+    H -.-&gt;|前置工具完成后| G
+
+    style F fill:#ff9,stroke:#333
+    style I fill:#9bf,stroke:#333
+    style X fill:#9f9,stroke:#333
+    style Z fill:#ddd,stroke:#333
+</code></pre>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>工具执行管线是 Claude Code 中工程复杂度最高的子系统之一。其核心设计决策包括：</p>
+<ol>
+<li><strong>StreamingToolExecutor 的四态状态机</strong>（queued -&gt; executing -&gt; completed -&gt; yielded）实现了渐进式调度，工具在流入的同时就开始执行</li>
+<li><strong>并发安全性基于输入</strong>而非工具类型，允许同一工具（如 BashTool）在不同输入下表现不同的并发行为</li>
+<li><strong>Bash 错误级联</strong>是唯一会取消兄弟工具的错误类型，其他工具的失败是独立的</li>
+<li><strong>磁盘持久化</strong>在单次调用层面控制工具输出大小，<code>maxResultSizeChars: Infinity</code> 豁免机制防止循环读取</li>
+<li><strong>Pre/Post 钩子</strong>提供了完整的拦截能力，支持权限覆盖、输入修改、输出过滤</li>
+<li><strong>ContentReplacementState</strong> 在全局层面管理工具结果的累积预算，通过替换旧结果保持上下文窗口在可控范围内</li>
+</ol>
+<p>这三层防线——单次截断（maxResultSizeChars）、磁盘持久化（persistToolResult）和全局预算（enforceToolResultBudget）——共同确保了即使在长对话中，工具输出也不会压垮上下文窗口。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part3-tool-system/ch08-builtin-tools.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part4-agent/ch10-agent-model.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part3-tool-system/ch08-builtin-tools.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part4-agent/ch10-agent-model.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

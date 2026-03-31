@@ -1,0 +1,619 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 13 章：权限模型 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part5-permission/ch13-permission-model.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-13-章权限模型"><a class="header" href="#第-13-章权限模型">第 13 章：权限模型</a></h1>
+<p>Claude Code 的权限系统是整个产品安全架构的核心支柱。它在“让 AI 自由完成任务“和“保护用户系统安全“之间构建了一条精密的平衡线。本章将深入源码，逐层剖析这一权限模型的设计与实现。</p>
+<h2 id="131-六层权限模式"><a class="header" href="#131-六层权限模式">13.1 六层权限模式</a></h2>
+<p>权限模式（Permission Mode）定义了 Claude Code 在与工具交互时的基本安全姿态。源码中在 <code>src/types/permissions.ts</code> 明确定义了所有模式：</p>
+<pre><code class="language-typescript">// src/types/permissions.ts
+export const EXTERNAL_PERMISSION_MODES = [
+  'acceptEdits',
+  'bypassPermissions',
+  'default',
+  'dontAsk',
+  'plan',
+] as const
+
+export type InternalPermissionMode = ExternalPermissionMode | 'auto' | 'bubble'
+export type PermissionMode = InternalPermissionMode
+</code></pre>
+<p>这段定义揭示了一个重要的架构决策：权限模式分为<strong>外部模式</strong>（面向用户的公开 API）和<strong>内部模式</strong>（包含 <code>auto</code> 和 <code>bubble</code> 等内部专用模式）。让我们逐一分析每种模式的语义。</p>
+<h3 id="1311-default-模式"><a class="header" href="#1311-default-模式">13.1.1 default 模式</a></h3>
+<p>这是系统的默认安全姿态。在此模式下，每个可能产生副作用的工具调用都需要用户明确授权。文件读取等只读操作可以自动通过，但写入、删除、执行命令等操作必须获得人类确认。</p>
+<h3 id="1312-plan-模式"><a class="header" href="#1312-plan-模式">13.1.2 plan 模式</a></h3>
+<p>Plan 模式是一种受限的“只规划不执行“模式，Claude 只能提出行动计划，不能实际执行修改操作。在 <code>PermissionMode.ts</code> 中的配置如下：</p>
+<pre><code class="language-typescript">// src/utils/permissions/PermissionMode.ts
+plan: {
+  title: 'Plan Mode',
+  shortTitle: 'Plan',
+  symbol: PAUSE_ICON,
+  color: 'planMode',
+  external: 'plan',
+},
+</code></pre>
+<p>使用暂停图标（<code>PAUSE_ICON</code>）作为视觉标识，直观表达其“停下来思考“的语义。</p>
+<h3 id="1313-acceptedits-模式"><a class="header" href="#1313-acceptedits-模式">13.1.3 acceptEdits 模式</a></h3>
+<p>这是一种中间信任级别。在工作目录内的文件编辑操作可以自动通过，但执行 shell 命令等高风险操作仍需用户确认。这是大多数开发者日常使用时的推荐模式——编辑代码无需反复确认，但执行命令仍然受控。</p>
+<h3 id="1314-bypasspermissions-模式"><a class="header" href="#1314-bypasspermissions-模式">13.1.4 bypassPermissions 模式</a></h3>
+<p>这是最宽松的模式，几乎所有操作都会自动批准。源码用红色（<code>error</code>）标注这一模式，暗示其危险性：</p>
+<pre><code class="language-typescript">bypassPermissions: {
+  title: 'Bypass Permissions',
+  shortTitle: 'Bypass',
+  symbol: '⏵⏵',
+  color: 'error',
+  external: 'bypassPermissions',
+},
+</code></pre>
+<p>此模式还受到一个 killswitch 机制的约束（<code>bypassPermissionsKillswitch.ts</code>），可以在发现安全问题时远程禁用。</p>
+<h3 id="1315-dontask-模式"><a class="header" href="#1315-dontask-模式">13.1.5 dontAsk 模式</a></h3>
+<p>与 <code>bypassPermissions</code> 类似，但策略不同：当遇到需要确认的操作时，不是自动批准，而是<strong>自动拒绝</strong>。这在无人值守的自动化场景中很有用——宁可操作失败也不要执行未授权的操作。</p>
+<h3 id="1316-auto-模式内部"><a class="header" href="#1316-auto-模式内部">13.1.6 auto 模式（内部）</a></h3>
+<p>这是最精密的模式，仅在内部构建中可用（通过 <code>feature('TRANSCRIPT_CLASSIFIER')</code> 门控）。它使用 AI 分类器来自动判断操作是否安全，无需人工干预。</p>
+<pre><code class="language-typescript">...(feature('TRANSCRIPT_CLASSIFIER')
+  ? {
+      auto: {
+        title: 'Auto mode',
+        shortTitle: 'Auto',
+        symbol: '⏵⏵',
+        color: 'warning' as ModeColorKey,
+        external: 'default' as ExternalPermissionMode,
+      },
+    }
+  : {}),
+</code></pre>
+<p>注意 <code>external: 'default'</code>——auto 模式在对外 API 中被映射为 <code>default</code>，外部用户无法直接感知到它的存在。</p>
+<h3 id="权限模式状态转换"><a class="header" href="#权限模式状态转换">权限模式状态转换</a></h3>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; default: 启动默认
+    default --&gt; plan: 用户切换 / Shift+Tab
+    default --&gt; acceptEdits: 用户切换
+    default --&gt; auto: 内部启用分类器
+    plan --&gt; default: 退出计划模式
+    acceptEdits --&gt; default: 用户切换
+    acceptEdits --&gt; bypassPermissions: 用户提权
+    bypassPermissions --&gt; default: 用户降级
+    auto --&gt; default: 分类器不可用时回退
+    default --&gt; dontAsk: CI/CD 环境设定
+    dontAsk --&gt; default: 用户切换
+</code></pre>
+<h2 id="132-规则系统"><a class="header" href="#132-规则系统">13.2 规则系统</a></h2>
+<p>权限模式定义了全局策略，而规则系统提供了细粒度的工具级控制。规则系统的核心是一个 <strong>Allow / Deny / Ask 三元决策模型</strong>。</p>
+<h3 id="1321-规则结构"><a class="header" href="#1321-规则结构">13.2.1 规则结构</a></h3>
+<pre><code class="language-typescript">// src/types/permissions.ts
+export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+
+export type PermissionRule = {
+  source: PermissionRuleSource
+  ruleBehavior: PermissionBehavior
+  ruleValue: PermissionRuleValue
+}
+
+export type PermissionRuleValue = {
+  toolName: string
+  ruleContent?: string
+}
+</code></pre>
+<p>一条规则由三部分组成：<strong>来源</strong>（source）——规定了规则从哪里加载；<strong>行为</strong>（ruleBehavior）——Allow、Deny 或 Ask；<strong>值</strong>（ruleValue）——指定哪个工具、什么条件下触发。</p>
+<p><code>ruleContent</code> 是可选的，它允许对工具进行更精细的控制。例如 <code>Bash(npm test:*)</code> 表示仅对以 <code>npm test</code> 为前缀的 Bash 命令生效。</p>
+<h3 id="1322-多源规则合并"><a class="header" href="#1322-多源规则合并">13.2.2 多源规则合并</a></h3>
+<p>规则可以来自多个来源，按优先级从高到低排列：</p>
+<pre><code class="language-typescript">// src/utils/permissions/permissions.ts
+const PERMISSION_RULE_SOURCES = [
+  ...SETTING_SOURCES,    // userSettings, projectSettings, localSettings, flagSettings, policySettings
+  'cliArg',              // 命令行参数
+  'command',             // 运行时命令
+  'session',             // 会话级临时规则
+] as const satisfies readonly PermissionRuleSource[]
+</code></pre>
+<p>每种来源的规则独立维护。获取 Allow 规则的实现如下：</p>
+<pre><code class="language-typescript">export function getAllowRules(context: ToolPermissionContext): PermissionRule[] {
+  return PERMISSION_RULE_SOURCES.flatMap(source =&gt;
+    (context.alwaysAllowRules[source] || []).map(ruleString =&gt; ({
+      source,
+      ruleBehavior: 'allow',
+      ruleValue: permissionRuleValueFromString(ruleString),
+    })),
+  )
+}
+</code></pre>
+<p>所有来源的规则被 <code>flatMap</code> 扁平化为一个统一的列表。获取 Deny 和 Ask 规则的方式完全对称。</p>
+<h3 id="1323-工具匹配逻辑"><a class="header" href="#1323-工具匹配逻辑">13.2.3 工具匹配逻辑</a></h3>
+<p>规则匹配分为两个层次——整体工具匹配和内容级匹配：</p>
+<pre><code class="language-typescript">function toolMatchesRule(
+  tool: Pick&lt;Tool, 'name' | 'mcpInfo'&gt;,
+  rule: PermissionRule,
+): boolean {
+  // 规则不含 ruleContent 时，匹配整个工具
+  if (rule.ruleValue.ruleContent !== undefined) {
+    return false
+  }
+  const nameForRuleMatch = getToolNameForPermissionCheck(tool)
+  if (rule.ruleValue.toolName === nameForRuleMatch) {
+    return true
+  }
+  // MCP 服务级权限：规则 "mcp__server1" 匹配 "mcp__server1__tool1"
+  const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
+  const toolInfo = mcpInfoFromString(nameForRuleMatch)
+  return (
+    ruleInfo !== null &amp;&amp; toolInfo !== null &amp;&amp;
+    (ruleInfo.toolName === undefined || ruleInfo.toolName === '*') &amp;&amp;
+    ruleInfo.serverName === toolInfo.serverName
+  )
+}
+</code></pre>
+<p>MCP 工具支持服务级别的权限控制——一条 <code>mcp__server1</code> 的规则可以匹配该服务器下的所有工具，实现批量授权。</p>
+<h2 id="133-权限检查流水线"><a class="header" href="#133-权限检查流水线">13.3 权限检查流水线</a></h2>
+<p>权限检查的核心入口是 <code>hasPermissionsToUseTool</code> 函数，它是整个权限系统的调度中心。</p>
+<pre><code class="language-typescript">// src/utils/permissions/permissions.ts
+export const hasPermissionsToUseTool: CanUseToolFn = async (
+  tool, input, context, assistantMessage, toolUseID,
+): Promise&lt;PermissionDecision&gt; =&gt; {
+  const result = await hasPermissionsToUseToolInner(tool, input, context)
+
+  // 成功的工具调用重置连续拒绝计数
+  if (result.behavior === 'allow') {
+    // ...重置 denial tracking
+    return result
+  }
+
+  // dontAsk 模式：将 ask 转换为 deny
+  if (result.behavior === 'ask') {
+    const appState = context.getAppState()
+    if (appState.toolPermissionContext.mode === 'dontAsk') {
+      return {
+        behavior: 'deny',
+        message: DONT_ASK_REJECT_MESSAGE(tool.name),
+      }
+    }
+    // auto 模式：使用分类器代替人工确认
+    // ...（详见 13.4 节）
+  }
+  return result
+}
+</code></pre>
+<p>完整的权限检查流水线如下图所示：</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[工具调用请求] --&gt; B{hasPermissionsToUseToolInner}
+    B --&gt;|allow| C[重置 denial tracking]
+    C --&gt; D[返回 allow]
+    B --&gt;|deny| E[返回 deny]
+    B --&gt;|ask| F{检查权限模式}
+    F --&gt;|dontAsk| G[转换为 deny]
+    F --&gt;|auto| H{安全检查不可分类器审批?}
+    H --&gt;|是| I[保持 ask / deny]
+    H --&gt;|否| J{acceptEdits 快速路径?}
+    J --&gt;|通过| K[返回 allow]
+    J --&gt;|不通过| L{安全工具白名单?}
+    L --&gt;|匹配| M[返回 allow]
+    L --&gt;|不匹配| N[运行 auto 分类器]
+    N --&gt;|允许| O[返回 allow]
+    N --&gt;|拒绝| P{连续拒绝超限?}
+    P --&gt;|是| Q[回退到人工确认]
+    P --&gt;|否| R[返回 deny]
+    F --&gt;|default/acceptEdits| S{shouldAvoidPermissionPrompts?}
+    S --&gt;|是| T[运行 Hook]
+    T --&gt;|Hook 决策| U[返回 Hook 结果]
+    T --&gt;|无 Hook 决策| V[自动 deny]
+    S --&gt;|否| W[显示权限提示 UI]
+</code></pre>
+<p><code>hasPermissionsToUseToolInner</code> 的内部流程更加复杂，它按以下优先级依次检查：</p>
+<ol>
+<li><strong>Plan 模式检查</strong>：plan 模式下拒绝非只读工具</li>
+<li><strong>Deny 规则匹配</strong>：优先级最高，命中即拒绝</li>
+<li><strong>Allow 规则匹配</strong>：匹配到的 allow 规则可以直接放行</li>
+<li><strong>工具自身的 checkPermissions</strong>：每个工具实现自己的权限逻辑</li>
+<li><strong>bypassPermissions 模式</strong>：在安全检查通过后放行</li>
+<li><strong>默认 ask</strong>：以上都不命中，返回 ask 交给用户决定</li>
+</ol>
+<h2 id="134-分类器辅助"><a class="header" href="#134-分类器辅助">13.4 分类器辅助</a></h2>
+<p>当权限检查返回 <code>ask</code> 且系统处于 <code>auto</code> 模式时，不是直接弹出对话框，而是启用 AI 分类器来自动决策。</p>
+<h3 id="1341-bash_classifier-特性"><a class="header" href="#1341-bash_classifier-特性">13.4.1 BASH_CLASSIFIER 特性</a></h3>
+<p>Bash 命令分类器（<code>BASH_CLASSIFIER</code>）是一个专门针对 shell 命令的安全分析模块。其接口在 <code>bashClassifier.ts</code> 中定义（外部构建是 stub）：</p>
+<pre><code class="language-typescript">// src/utils/permissions/bashClassifier.ts (外部构建的 stub)
+export async function classifyBashCommand(
+  _command: string,
+  _cwd: string,
+  _descriptions: string[],
+  _behavior: ClassifierBehavior,
+  _signal: AbortSignal,
+  _isNonInteractiveSession: boolean,
+): Promise&lt;ClassifierResult&gt; {
+  return {
+    matches: false,
+    confidence: 'high',
+    reason: 'This feature is disabled',
+  }
+}
+</code></pre>
+<p>分类器返回三个关键字段：<code>matches</code>（是否匹配规则描述）、<code>confidence</code>（置信度：high/medium/low）和 <code>reason</code>（人类可读的解释）。</p>
+<h3 id="1342-speculativeclassifiercheck-竞赛设计"><a class="header" href="#1342-speculativeclassifiercheck-竞赛设计">13.4.2 speculativeClassifierCheck 竞赛设计</a></h3>
+<p>在 <code>useCanUseTool.tsx</code> 中，当权限检查返回 <code>ask</code> 时，系统并行发起了分类器检查和用户确认对话：</p>
+<pre><code class="language-typescript">// src/hooks/useCanUseTool.tsx
+case "ask": {
+  if (appState.toolPermissionContext.awaitAutomatedChecksBeforeDialog) {
+    const coordinatorDecision = await handleCoordinatorPermission({
+      ctx,
+      ...(feature("BASH_CLASSIFIER") ? {
+        pendingClassifierCheck: result.pendingClassifierCheck
+      } : {}),
+      // ...
+    });
+    if (coordinatorDecision) {
+      resolve(coordinatorDecision);
+      return;
+    }
+  }
+  // 显示交互式权限对话框...
+  const swarmDecision = await handleSwarmWorkerPermission({
+    ctx, description,
+    ...(feature("BASH_CLASSIFIER") ? {
+      pendingClassifierCheck: result.pendingClassifierCheck
+    } : {}),
+    // ...
+  });
+</code></pre>
+<p><code>pendingClassifierCheck</code> 是一个在 <code>bashPermissions.ts</code> 中预先启动的 Promise。它实现了一种“投机性检查“（speculative check）——在用户看到确认对话框之前，分类器可能已经完成了判断。如果分类器判定安全，用户甚至不会看到对话框；如果分类器判定不安全或超时，系统才回退到人工确认。</p>
+<p>这种竞赛设计（race）在 <code>consumeSpeculativeClassifierCheck</code> 和 <code>peekSpeculativeClassifierCheck</code> 中实现，确保分类器结果只被消费一次。</p>
+<h3 id="1343-yolo-分类器auto-模式"><a class="header" href="#1343-yolo-分类器auto-模式">13.4.3 YOLO 分类器（auto 模式）</a></h3>
+<p>auto 模式的核心是 <code>yoloClassifier.ts</code> 中的全局分类器。它不仅分析单条命令，还分析<strong>完整的对话上下文</strong>（transcript）来判断操作是否安全：</p>
+<pre><code class="language-typescript">// src/utils/permissions/yoloClassifier.ts
+classifierResult = await classifyYoloAction(
+  context.messages,     // 完整对话历史
+  action,               // 当前操作描述
+  context.options.tools, // 可用工具列表
+  appState.toolPermissionContext,
+  context.abortController.signal,
+)
+</code></pre>
+<p>在调用分类器之前，系统会尝试多个快速路径来避免昂贵的 API 调用：</p>
+<pre><code class="language-typescript">// 快速路径 1：acceptEdits 检查
+if (result.behavior === 'ask' &amp;&amp; tool.name !== AGENT_TOOL_NAME) {
+  const acceptEditsResult = await tool.checkPermissions(parsedInput, {
+    ...context,
+    getAppState: () =&gt; ({
+      ...state,
+      toolPermissionContext: {
+        ...state.toolPermissionContext,
+        mode: 'acceptEdits' as const,
+      },
+    }),
+  })
+  if (acceptEditsResult.behavior === 'allow') {
+    // 跳过分类器，直接允许
+    return { behavior: 'allow', ... }
+  }
+}
+
+// 快速路径 2：安全工具白名单
+if (classifierDecisionModule!.isAutoModeAllowlistedTool(tool.name)) {
+  return { behavior: 'allow', ... }
+}
+</code></pre>
+<p>安全工具白名单（<code>SAFE_YOLO_ALLOWLISTED_TOOLS</code>）在 <code>classifierDecision.ts</code> 中定义，包含了所有确认安全的只读工具：</p>
+<pre><code class="language-typescript">const SAFE_YOLO_ALLOWLISTED_TOOLS = new Set([
+  FILE_READ_TOOL_NAME,
+  GREP_TOOL_NAME, GLOB_TOOL_NAME, LSP_TOOL_NAME,
+  TODO_WRITE_TOOL_NAME,
+  ASK_USER_QUESTION_TOOL_NAME,
+  SLEEP_TOOL_NAME,
+  // ...
+])
+</code></pre>
+<h2 id="135-拒绝追踪"><a class="header" href="#135-拒绝追踪">13.5 拒绝追踪</a></h2>
+<p>当 auto 模式分类器连续拒绝操作时，可能意味着分类器的判断与用户意图不一致。<code>denialTracking.ts</code> 实现了一个升级机制来处理这种情况：</p>
+<pre><code class="language-typescript">// src/utils/permissions/denialTracking.ts
+export type DenialTrackingState = {
+  consecutiveDenials: number
+  totalDenials: number
+}
+
+export const DENIAL_LIMITS = {
+  maxConsecutive: 3,
+  maxTotal: 20,
+} as const
+
+export function shouldFallbackToPrompting(state: DenialTrackingState): boolean {
+  return (
+    state.consecutiveDenials &gt;= DENIAL_LIMITS.maxConsecutive ||
+    state.totalDenials &gt;= DENIAL_LIMITS.maxTotal
+  )
+}
+</code></pre>
+<p>设计精要在于两个独立的阈值：</p>
+<ul>
+<li><strong>连续拒绝阈值</strong>（3 次）：检测短期的分类器-用户不一致。连续 3 次拒绝后回退到人工确认，让用户有机会纠正。</li>
+<li><strong>总拒绝阈值</strong>（20 次）：检测长期的系统性问题。即使每次连续拒绝都被成功操作打断，积累到 20 次也会触发回退。</li>
+</ul>
+<p>状态管理函数是纯函数，返回新状态而非修改原状态：</p>
+<pre><code class="language-typescript">export function recordDenial(state: DenialTrackingState): DenialTrackingState {
+  return {
+    ...state,
+    consecutiveDenials: state.consecutiveDenials + 1,
+    totalDenials: state.totalDenials + 1,
+  }
+}
+
+export function recordSuccess(state: DenialTrackingState): DenialTrackingState {
+  if (state.consecutiveDenials === 0) return state // 无需变化
+  return { ...state, consecutiveDenials: 0 }
+}
+</code></pre>
+<p><code>recordSuccess</code> 中的短路优化很精巧——如果连续拒绝计数已经是 0，直接返回原对象，避免无意义的对象创建。</p>
+<p>在 <code>permissions.ts</code> 中的使用方式：</p>
+<pre><code class="language-typescript">if (result.behavior === 'allow') {
+  const currentDenialState =
+    context.localDenialTracking ?? appState.denialTracking
+  if (appState.toolPermissionContext.mode === 'auto' &amp;&amp;
+      currentDenialState &amp;&amp; currentDenialState.consecutiveDenials &gt; 0) {
+    const newDenialState = recordSuccess(currentDenialState)
+    persistDenialState(context, newDenialState)
+  }
+  return result
+}
+</code></pre>
+<p>注意 <code>context.localDenialTracking</code> 的优先级高于 <code>appState.denialTracking</code>——这是为异步子代理设计的。子代理的 <code>setAppState</code> 是 no-op，不能通过全局状态传递拒绝追踪信息，因此需要本地独立跟踪。</p>
+<h2 id="136-权限持久化"><a class="header" href="#136-权限持久化">13.6 权限持久化</a></h2>
+<p>权限规则的持久化分为两个级别：会话级和全局级。</p>
+<h3 id="1361-会话级权限"><a class="header" href="#1361-会话级权限">13.6.1 会话级权限</a></h3>
+<p>会话级权限存储在 <code>ToolPermissionContext</code> 的 <code>session</code> 来源中，随会话结束而消失。当用户在权限对话框中选择“允许一次“或“拒绝一次“时，产生的就是会话级规则。</p>
+<h3 id="1362-全局级权限"><a class="header" href="#1362-全局级权限">13.6.2 全局级权限</a></h3>
+<p>全局级权限持久化到设置文件中，有多个目标位置：</p>
+<pre><code class="language-typescript">// src/types/permissions.ts
+export type PermissionUpdateDestination =
+  | 'userSettings'       // ~/.claude/settings.json
+  | 'projectSettings'    // .claude/settings.json
+  | 'localSettings'      // .claude/settings.local.json
+  | 'session'            // 内存中
+  | 'cliArg'             // CLI 参数
+</code></pre>
+<p>持久化操作由 <code>PermissionUpdate.ts</code> 中的 <code>persistPermissionUpdates</code> 处理。一个典型的权限更新操作：</p>
+<pre><code class="language-typescript">// 用户点击"Always allow for this project"
+const update: PermissionUpdate = {
+  type: 'addRules',
+  rules: [{ toolName: 'Bash', ruleContent: 'npm test:*' }],
+  behavior: 'allow',
+  destination: 'localSettings',
+}
+</code></pre>
+<p>这条规则会被写入项目本地的 <code>.claude/settings.local.json</code> 文件（不入 Git），允许在该项目中自动执行以 <code>npm test</code> 开头的命令。</p>
+<p>权限的加载在 <code>permissionsLoader.ts</code> 中实现，它从所有配置来源收集规则，合并到 <code>ToolPermissionContext</code> 对象中。加载顺序保证了优先级——策略设置（policySettings）优先于用户设置（userSettings），用户设置优先于项目设置（projectSettings）。</p>
+<p>这种分层持久化设计允许企业通过策略（policy）强制某些安全约束，同时让开发者在项目级别自定义便捷规则，实现了安全性与可用性的平衡。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part4-agent/ch12-skill-system.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part5-permission/ch14-bash-security.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part4-agent/ch12-skill-system.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part5-permission/ch14-bash-security.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

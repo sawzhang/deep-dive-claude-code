@@ -1,0 +1,687 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 14 章：Bash 安全分析 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part5-permission/ch14-bash-security.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-14-章bash-安全分析"><a class="header" href="#第-14-章bash-安全分析">第 14 章：Bash 安全分析</a></h1>
+<p>Bash 工具是 Claude Code 中最强大也最危险的能力——它赋予 AI 直接在用户系统上执行任意 shell 命令的权力。这种能力的安全边界完全依赖于本章所述的多层安全分析机制。我们将从底层的命令解析开始，逐层上升到沙箱隔离，完整剖析这一安全体系。</p>
+<h2 id="141-命令解析"><a class="header" href="#141-命令解析">14.1 命令解析</a></h2>
+<p>在进行任何安全判断之前，系统必须首先理解命令的语义结构。这一过程涉及 shell 引号处理、命令分割、环境变量剥离等多个步骤。</p>
+<h3 id="1411-引号内容提取"><a class="header" href="#1411-引号内容提取">14.1.1 引号内容提取</a></h3>
+<p><code>bashSecurity.ts</code> 中的 <code>extractQuotedContent</code> 函数实现了一个精确的 shell 引号状态机：</p>
+<pre><code class="language-typescript">// src/tools/BashTool/bashSecurity.ts
+function extractQuotedContent(command: string, isJq = false): QuoteExtraction {
+  let withDoubleQuotes = ''
+  let fullyUnquoted = ''
+  let unquotedKeepQuoteChars = ''
+  let inSingleQuote = false
+  let inDoubleQuote = false
+  let escaped = false
+
+  for (let i = 0; i &lt; command.length; i++) {
+    const char = command[i]
+
+    if (escaped) {
+      escaped = false
+      if (!inSingleQuote) withDoubleQuotes += char
+      if (!inSingleQuote &amp;&amp; !inDoubleQuote) fullyUnquoted += char
+      if (!inSingleQuote &amp;&amp; !inDoubleQuote) unquotedKeepQuoteChars += char
+      continue
+    }
+
+    if (char === '\\' &amp;&amp; !inSingleQuote) {
+      escaped = true
+      // ...
+      continue
+    }
+    // ...
+  }
+  return { withDoubleQuotes, fullyUnquoted, unquotedKeepQuoteChars }
+}
+</code></pre>
+<p>这个函数产生三种不同的“去引号“视图：</p>
+<ul>
+<li><code>withDoubleQuotes</code>：仅剥离单引号内容，保留双引号内容（因为双引号内仍可能有变量展开）</li>
+<li><code>fullyUnquoted</code>：剥离所有引号内容，仅保留裸露的 shell 语法</li>
+<li><code>unquotedKeepQuoteChars</code>：剥离引号内容但保留引号字符本身，用于检测引号相邻的特殊模式（如 <code>'x'#</code>）</li>
+</ul>
+<p>这三个视图服务于不同的安全验证器。例如，命令替换检测（<code>$(...)</code>）需要在 <code>fullyUnquoted</code> 上进行，因为单引号内的 <code>$(</code> 不会被 shell 展开；而 mid-word hash 检测需要 <code>unquotedKeepQuoteChars</code>，因为 <code>echo 'x'#comment</code> 中引号的位置关系对 shell 解析有影响。</p>
+<h3 id="1412-命令替换模式检测"><a class="header" href="#1412-命令替换模式检测">14.1.2 命令替换模式检测</a></h3>
+<p>系统维护了一个完整的命令替换模式列表：</p>
+<pre><code class="language-typescript">const COMMAND_SUBSTITUTION_PATTERNS = [
+  { pattern: /&lt;\(/, message: 'process substitution &lt;()' },
+  { pattern: /&gt;\(/, message: 'process substitution &gt;()' },
+  { pattern: /=\(/, message: 'Zsh process substitution =()' },
+  { pattern: /(?:^|[\s;&amp;|])=[a-zA-Z_]/, message: 'Zsh equals expansion (=cmd)' },
+  { pattern: /\$\(/, message: '$() command substitution' },
+  { pattern: /\$\{/, message: '${} parameter substitution' },
+  { pattern: /\$\[/, message: '$[] legacy arithmetic expansion' },
+  { pattern: /~\[/, message: 'Zsh-style parameter expansion' },
+  { pattern: /\(e:/, message: 'Zsh-style glob qualifiers' },
+  { pattern: /\(\+/, message: 'Zsh glob qualifier with command execution' },
+  { pattern: /\}\s*always\s*\{/, message: 'Zsh always block' },
+  { pattern: /&lt;#/, message: 'PowerShell comment syntax' },
+]
+</code></pre>
+<p>这份列表涵盖了 Bash 和 Zsh 两种 shell 的命令替换语法。特别值得注意的是 Zsh 的等号展开（<code>=cmd</code>）——<code>=curl evil.com</code> 在 Zsh 中等价于 <code>/usr/bin/curl evil.com</code>，可以绕过 <code>Bash(curl:*)</code> 的 deny 规则。</p>
+<h3 id="1413-zsh-危险命令集"><a class="header" href="#1413-zsh-危险命令集">14.1.3 Zsh 危险命令集</a></h3>
+<p>系统额外维护了一个 Zsh 特有的危险命令列表：</p>
+<pre><code class="language-typescript">const ZSH_DANGEROUS_COMMANDS = new Set([
+  'zmodload',    // 模块加载 - 可以启用文件 I/O、网络、伪终端等
+  'emulate',     // 带 -c 标志时是 eval 等价物
+  'sysopen', 'sysread', 'syswrite', 'sysseek',  // zsh/system 模块
+  'zpty',        // 伪终端命令执行
+  'ztcp', 'zsocket',  // 网络连接
+  'zf_rm', 'zf_mv', 'zf_ln', 'zf_chmod',  // zsh/files 内建命令
+  // ...
+])
+</code></pre>
+<p><code>zmodload</code> 是 Zsh 安全的关键威胁——它可以加载 <code>zsh/mapfile</code>（通过数组赋值实现隐形文件 I/O）、<code>zsh/net/tcp</code>（通过 <code>ztcp</code> 进行网络外泄）等模块，使得许多“安全“的命令变成攻击向量。</p>
+<h3 id="1414-安全检查编号系统"><a class="header" href="#1414-安全检查编号系统">14.1.4 安全检查编号系统</a></h3>
+<p>为了日志和分析，每个安全检查都有一个数值 ID：</p>
+<pre><code class="language-typescript">const BASH_SECURITY_CHECK_IDS = {
+  INCOMPLETE_COMMANDS: 1,
+  JQ_SYSTEM_FUNCTION: 2,
+  JQ_FILE_ARGUMENTS: 3,
+  OBFUSCATED_FLAGS: 4,
+  SHELL_METACHARACTERS: 5,
+  DANGEROUS_VARIABLES: 6,
+  NEWLINES: 7,
+  DANGEROUS_PATTERNS_COMMAND_SUBSTITUTION: 8,
+  // ...
+  COMMENT_QUOTE_DESYNC: 22,
+  QUOTED_NEWLINE: 23,
+} as const
+</code></pre>
+<p>使用数值而非字符串避免了在遥测数据中泄露安全检查的具体逻辑。</p>
+<h2 id="142-危险命令检测"><a class="header" href="#142-危险命令检测">14.2 危险命令检测</a></h2>
+<h3 id="1421-危险模式列表"><a class="header" href="#1421-危险模式列表">14.2.1 危险模式列表</a></h3>
+<p><code>dangerousPatterns.ts</code> 维护了一组跨平台的代码执行入口点：</p>
+<pre><code class="language-typescript">// src/utils/permissions/dangerousPatterns.ts
+export const CROSS_PLATFORM_CODE_EXEC = [
+  'python', 'python3', 'python2',
+  'node', 'deno', 'tsx',
+  'ruby', 'perl', 'php', 'lua',
+  'npx', 'bunx',
+  'npm run', 'yarn run', 'pnpm run', 'bun run',
+  'bash', 'sh',
+  'ssh',
+] as const
+
+export const DANGEROUS_BASH_PATTERNS: readonly string[] = [
+  ...CROSS_PLATFORM_CODE_EXEC,
+  'zsh', 'fish', 'eval', 'exec', 'env', 'xargs', 'sudo',
+  ...(process.env.USER_TYPE === 'ant' ? [
+    'fa run', 'coo',
+    'gh', 'gh api', 'curl', 'wget',
+    'git', 'kubectl', 'aws', 'gcloud', 'gsutil',
+  ] : []),
+]
+</code></pre>
+<p>这些模式被用于 <code>permissionSetup.ts</code> 中的 <code>isDangerousBashPermission</code>——当用户进入 auto 模式时，类似 <code>Bash(python:*)</code> 这种过于宽泛的 allow 规则会被自动剥离，因为它们本质上等于允许执行任意代码。</p>
+<p>注意 Anthropic 内部用户（<code>USER_TYPE === 'ant'</code>）有更严格的限制，额外禁止了 <code>gh</code>（GitHub CLI）、<code>curl</code>/<code>wget</code>（网络请求）、<code>git</code>（可通过 hooks 执行代码）等工具的宽泛授权。</p>
+<h3 id="1422-验证器流水线"><a class="header" href="#1422-验证器流水线">14.2.2 验证器流水线</a></h3>
+<p><code>bashSecurity.ts</code> 实现了一系列验证函数，构成了安全验证流水线：</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[原始命令] --&gt; B[extractQuotedContent]
+    B --&gt; C[ValidationContext 构造]
+    C --&gt; D[validateEmpty]
+    D --&gt;|非空| E[validateIncompleteCommands]
+    E --&gt;|完整| F[validateJqCommand]
+    F --&gt; G[validateObfuscatedFlags]
+    G --&gt; H[validateShellMetacharacters]
+    H --&gt; I[validateDangerousVariables]
+    I --&gt; J[validateNewlines]
+    J --&gt; K[validateDangerousPatterns]
+    K --&gt; L[validateIFSInjection]
+    L --&gt; M[validateGitCommitSubstitution]
+    M --&gt; N[validateProcEnviron]
+    N --&gt; O[validateMalformedTokens]
+    O --&gt; P[validateBackslashEscapedWhitespace]
+    P --&gt; Q[validateBraceExpansion]
+    Q --&gt; R[validateControlCharacters]
+    R --&gt; S[validateUnicodeWhitespace]
+    S --&gt; T[validateMidWordHash]
+    T --&gt; U[validateZshDangerousCommands]
+    U --&gt; V[validateBackslashEscapedOperators]
+    V --&gt; W[validateCommentQuoteDesync]
+    W --&gt; X[validateQuotedNewline]
+    X --&gt; Y{所有验证通过?}
+    Y --&gt;|是| Z[返回 allow]
+    Y --&gt;|任一 ask/deny| AA[返回该结果]
+</code></pre>
+<p>每个验证器返回 <code>PermissionResult</code>，其 <code>behavior</code> 可以是 <code>allow</code>（确认安全）、<code>ask</code>（需要人工确认）或 <code>passthrough</code>（此验证器无法判断，交给下一个）。流水线在遇到第一个非 <code>passthrough</code> 结果时停止。</p>
+<h3 id="1423-反转义后门检测"><a class="header" href="#1423-反转义后门检测">14.2.3 反转义后门检测</a></h3>
+<p><code>hasUnescapedChar</code> 是一个关键的底层函数，用于在引号剥离后的内容中检测未转义的危险字符：</p>
+<pre><code class="language-typescript">function hasUnescapedChar(content: string, char: string): boolean {
+  if (char.length !== 1) {
+    throw new Error('hasUnescapedChar only works with single characters')
+  }
+  let i = 0
+  while (i &lt; content.length) {
+    if (content[i] === '\\' &amp;&amp; i + 1 &lt; content.length) {
+      i += 2  // 跳过转义序列
+      continue
+    }
+    if (content[i] === char) {
+      return true
+    }
+    i++
+  }
+  return false
+}
+</code></pre>
+<p>函数注释中的安全警告值得深思：它故意限制只接受单字符，因为多字符字符串匹配需要处理 ANSI-C 引号（如 <code>$'\n'</code>、<code>$'\x41'</code>）的编码问题，错误处理可能引入绕过漏洞。</p>
+<h2 id="143-路径边界校验"><a class="header" href="#143-路径边界校验">14.3 路径边界校验</a></h2>
+<p><code>pathValidation.ts</code> 实现了文件系统路径的安全校验，确保工具操作不会超出授权范围。</p>
+<h3 id="1431-路径分层检查"><a class="header" href="#1431-路径分层检查">14.3.1 路径分层检查</a></h3>
+<p><code>isPathAllowed</code> 函数按优先级执行五层检查：</p>
+<pre><code class="language-typescript">// src/utils/permissions/pathValidation.ts
+export function isPathAllowed(
+  resolvedPath: string,
+  context: ToolPermissionContext,
+  operationType: FileOperationType,
+): PathCheckResult {
+  // 1. Deny 规则优先
+  const denyRule = matchingRuleForInput(resolvedPath, context, permissionType, 'deny')
+  if (denyRule !== null) {
+    return { allowed: false, decisionReason: { type: 'rule', rule: denyRule } }
+  }
+
+  // 2. 内部可编辑路径（计划文件、暂存区、代理内存）
+  if (operationType !== 'read') {
+    const internalEditResult = checkEditableInternalPath(resolvedPath, {})
+    if (internalEditResult.behavior === 'allow') {
+      return { allowed: true }
+    }
+  }
+
+  // 2.5. 安全性检查（Windows 模式、Claude 配置文件、危险文件）
+  if (operationType !== 'read') {
+    const safetyCheck = checkPathSafetyForAutoEdit(resolvedPath)
+    if (!safetyCheck.safe) {
+      return { allowed: false, decisionReason: { type: 'safetyCheck', ... } }
+    }
+  }
+
+  // 3. 工作目录检查
+  const isInWorkingDir = pathInAllowedWorkingPath(resolvedPath, context)
+  if (isInWorkingDir) {
+    if (operationType === 'read' || context.mode === 'acceptEdits') {
+      return { allowed: true }
+    }
+  }
+
+  // 3.7. 沙箱写入白名单
+  if (operationType !== 'read' &amp;&amp; !isInWorkingDir &amp;&amp;
+      isPathInSandboxWriteAllowlist(resolvedPath)) {
+    return { allowed: true }
+  }
+
+  // 4. Allow 规则
+  const allowRule = matchingRuleForInput(resolvedPath, context, permissionType, 'allow')
+  if (allowRule !== null) {
+    return { allowed: true, decisionReason: { type: 'rule', rule: allowRule } }
+  }
+
+  // 5. 默认不允许
+  return { allowed: false }
+}
+</code></pre>
+<p>步骤 2 必须在步骤 2.5 之前——因为内部可编辑路径位于 <code>~/.claude/</code> 目录下，而该目录在安全性检查中被标记为危险目录。如果顺序颠倒，计划文件等内部功能将无法写入。</p>
+<h3 id="1432-toctou-防护"><a class="header" href="#1432-toctou-防护">14.3.2 TOCTOU 防护</a></h3>
+<p><code>validatePath</code> 函数包含了多层 TOCTOU（Time-of-Check-Time-of-Use）防护：</p>
+<pre><code class="language-typescript">export function validatePath(path: string, cwd: string, ...): ResolvedPathCheckResult {
+  const cleanPath = expandTilde(path.replace(/^['"]|['"]$/g, ''))
+
+  // 安全：阻止可泄露凭据的 UNC 路径
+  if (containsVulnerableUncPath(cleanPath)) {
+    return { allowed: false, resolvedPath: cleanPath,
+      decisionReason: { type: 'other', reason: 'UNC network paths require manual approval' } }
+  }
+
+  // 安全：拒绝 expandTilde 未处理的波浪号变体
+  // ~root, ~+, ~- 会被保留为字面文本并解析为相对路径
+  // 但 shell 会不同地展开它们，造成 TOCTOU 漏洞
+  if (cleanPath.startsWith('~')) {
+    return { allowed: false, ... }
+  }
+
+  // 安全：拒绝包含 Shell 展开语法的路径
+  // $VAR, ${VAR}, $(cmd), %VAR%, =cmd
+  if (cleanPath.includes('$') || cleanPath.includes('%') || cleanPath.startsWith('=')) {
+    return { allowed: false, ... }
+  }
+
+  // 安全：写操作中禁止 glob 模式
+  if (GLOB_PATTERN_REGEX.test(cleanPath)) {
+    if (operationType === 'write' || operationType === 'create') {
+      return { allowed: false, ... }
+    }
+    return validateGlobPattern(cleanPath, cwd, ...)
+  }
+  // ...
+}
+</code></pre>
+<p>TOCTOU 漏洞的典型场景：检查时 <code>$HOME</code> 等于 <code>/home/user</code>，验证通过；但执行时环境变量已被修改，实际路径变为其他位置。通过拒绝所有包含 shell 展开语法的路径，系统从根本上消除了这类攻击。</p>
+<h3 id="1433-危险删除路径检测"><a class="header" href="#1433-危险删除路径检测">14.3.3 危险删除路径检测</a></h3>
+<pre><code class="language-typescript">export function isDangerousRemovalPath(resolvedPath: string): boolean {
+  const forwardSlashed = resolvedPath.replace(/[\\/]+/g, '/')
+
+  if (forwardSlashed === '*' || forwardSlashed.endsWith('/*')) return true
+  if (normalizedPath === '/') return true
+  if (WINDOWS_DRIVE_ROOT_REGEX.test(normalizedPath)) return true
+
+  const normalizedHome = homedir().replace(/[\\/]+/g, '/')
+  if (normalizedPath === normalizedHome) return true
+
+  // 根目录的直接子目录：/usr, /tmp, /etc
+  const parentDir = dirname(normalizedPath)
+  if (parentDir === '/') return true
+  if (WINDOWS_DRIVE_CHILD_REGEX.test(normalizedPath)) return true
+
+  return false
+}
+</code></pre>
+<p>路径标准化（<code>replace(/[\\/]+/g, '/')</code>）确保 <code>C:\\Windows</code> 和 <code>C:/Windows</code> 被同等对待，防止通过混合斜杠格式绕过检测。</p>
+<h2 id="144-sed-命令验证"><a class="header" href="#144-sed-命令验证">14.4 sed 命令验证</a></h2>
+<p><code>sed</code> 是一个特殊的工具——它既能安全地搜索文本（<code>sed -n 's/old/new/p'</code>），也能危险地就地修改文件（<code>sed -i 's/old/new/' file</code>）。<code>sedValidation.ts</code> 实现了专门的逻辑来区分这两种情况。</p>
+<p>在 <code>readOnlyValidation.ts</code> 的只读命令配置中，<code>sed</code> 有特殊的回调验证：</p>
+<pre><code class="language-typescript">// src/tools/BashTool/readOnlyValidation.ts (概念表示)
+additionalCommandIsDangerousCallback: (rawCommand, args) =&gt; {
+  // 检查 -i 标志（就地编辑）
+  // 检查 w 命令（写入文件）
+  // 检查 r/R 命令（读取文件并插入）
+  // ...
+}
+</code></pre>
+<p>sed 的 <code>-i</code> 标志尤其需要小心处理，因为它在 GNU sed 和 BSD sed 中的行为不同——GNU sed 的 <code>-i</code> 后可以跟可选的备份后缀（<code>-i.bak</code>），而 BSD sed 的 <code>-i</code> 需要一个强制参数。验证器必须理解两种变体才能正确判断命令是否安全。</p>
+<h2 id="145-只读模式"><a class="header" href="#145-只读模式">14.5 只读模式</a></h2>
+<p><code>readOnlyValidation.ts</code> 实现了一个强大的命令只读验证系统，它能识别哪些命令调用本质上是安全的只读操作。</p>
+<h3 id="1451-统一命令配置系统"><a class="header" href="#1451-统一命令配置系统">14.5.1 统一命令配置系统</a></h3>
+<pre><code class="language-typescript">// src/tools/BashTool/readOnlyValidation.ts
+type CommandConfig = {
+  safeFlags: Record&lt;string, FlagArgType&gt;
+  regex?: RegExp
+  additionalCommandIsDangerousCallback?: (rawCommand: string, args: string[]) =&gt; boolean
+  respectsDoubleDash?: boolean
+}
+</code></pre>
+<p>每个命令的安全配置包含四个维度：</p>
+<ol>
+<li><strong>安全标志列表</strong>（<code>safeFlags</code>）：枚举该命令的所有安全标志及其参数类型</li>
+<li><strong>正则验证</strong>（<code>regex</code>）：额外的正则表达式验证</li>
+<li><strong>自定义回调</strong>（<code>additionalCommandIsDangerousCallback</code>）：复杂逻辑的自定义验证</li>
+<li><strong>双横线尊重</strong>（<code>respectsDoubleDash</code>）：该命令是否遵守 POSIX <code>--</code> 标志终止约定</li>
+</ol>
+<p>以 <code>fd</code>（文件查找工具）为例，其安全标志配置极为详尽：</p>
+<pre><code class="language-typescript">const FD_SAFE_FLAGS: Record&lt;string, FlagArgType&gt; = {
+  '-h': 'none', '--help': 'none',
+  '-H': 'none', '--hidden': 'none',
+  '-s': 'none', '--case-sensitive': 'none',
+  '-d': 'number', '--max-depth': 'number',
+  '-t': 'string', '--type': 'string',
+  '-e': 'string', '--extension': 'string',
+  // ...
+  // 安全：-x/--exec 和 -X/--exec-batch 被故意排除
+  // 因为它们为每个搜索结果执行任意命令
+  // 安全：-l/--list-details 被排除
+  // 因为它内部执行 ls 子进程，存在 PATH 劫持风险
+}
+</code></pre>
+<p>注释中的安全推理令人印象深刻：即使是看似无害的 <code>--list-details</code> 标志也被排除，因为它内部启动 <code>ls</code> 子进程，如果 PATH 被劫持就可能执行恶意代码。</p>
+<h3 id="1452-内置只读命令集"><a class="header" href="#1452-内置只读命令集">14.5.2 内置只读命令集</a></h3>
+<p>系统维护了多组只读命令列表：</p>
+<pre><code class="language-typescript">// src/utils/shell/readOnlyCommandValidation.ts
+export const GIT_READ_ONLY_COMMANDS = [/* git 只读子命令 */]
+export const GH_READ_ONLY_COMMANDS = [/* GitHub CLI 只读子命令 */]
+export const DOCKER_READ_ONLY_COMMANDS = [/* Docker 只读子命令 */]
+export const RIPGREP_READ_ONLY_COMMANDS = [/* ripgrep 安全标志 */]
+export const PYRIGHT_READ_ONLY_COMMANDS = [/* pyright 安全标志 */]
+</code></pre>
+<h3 id="1453-子命令数量限制"><a class="header" href="#1453-子命令数量限制">14.5.3 子命令数量限制</a></h3>
+<p>复合命令（使用 <code>&amp;&amp;</code>、<code>||</code>、<code>;</code> 连接的命令）的子命令数量被限制：</p>
+<pre><code class="language-typescript">// src/tools/BashTool/bashPermissions.ts
+export const MAX_SUBCOMMANDS_FOR_SECURITY_CHECK = 50
+</code></pre>
+<p>超过 50 个子命令时直接回退到 <code>ask</code>。注释解释了原因：<code>splitCommand_DEPRECATED</code> 在复杂复合命令上可能产生指数级增长的子命令数组，每个子命令都需要运行 tree-sitter 解析和 20 多个验证器，会导致事件循环饥饿和 UI 冻结。</p>
+<h2 id="146-沙箱模式"><a class="header" href="#146-沙箱模式">14.6 沙箱模式</a></h2>
+<p>沙箱是最后一道防线——即使所有上层安全检查都被绕过，沙箱也能限制命令的实际系统影响。</p>
+<h3 id="1461-沙箱启用逻辑"><a class="header" href="#1461-沙箱启用逻辑">14.6.1 沙箱启用逻辑</a></h3>
+<pre><code class="language-typescript">// src/tools/BashTool/shouldUseSandbox.ts
+export function shouldUseSandbox(input: Partial&lt;SandboxInput&gt;): boolean {
+  if (!SandboxManager.isSandboxingEnabled()) {
+    return false
+  }
+
+  // 用户显式禁用且策略允许
+  if (input.dangerouslyDisableSandbox &amp;&amp;
+      SandboxManager.areUnsandboxedCommandsAllowed()) {
+    return false
+  }
+
+  if (!input.command) return false
+
+  // 用户配置的排除命令
+  if (containsExcludedCommand(input.command)) {
+    return false
+  }
+
+  return true
+}
+</code></pre>
+<p>三个退出条件：</p>
+<ol>
+<li>全局未启用沙箱</li>
+<li>工具参数 <code>dangerouslyDisableSandbox</code> 被设置，且策略允许（注意命名中的 <code>dangerously</code> 前缀，是 API 设计中的“摩擦力“模式）</li>
+<li>命令匹配用户配置的排除列表</li>
+</ol>
+<h3 id="1462-排除命令匹配"><a class="header" href="#1462-排除命令匹配">14.6.2 排除命令匹配</a></h3>
+<p>排除命令的匹配逻辑处理了环境变量前缀和包装命令的情况：</p>
+<pre><code class="language-typescript">function containsExcludedCommand(command: string): boolean {
+  // ...
+  for (const subcommand of subcommands) {
+    const trimmed = subcommand.trim()
+    // 迭代地剥离环境变量和包装命令
+    const candidates = [trimmed]
+    const seen = new Set(candidates)
+    let startIdx = 0
+    while (startIdx &lt; candidates.length) {
+      const endIdx = candidates.length
+      for (let i = startIdx; i &lt; endIdx; i++) {
+        const cmd = candidates[i]!
+        const envStripped = stripAllLeadingEnvVars(cmd, BINARY_HIJACK_VARS)
+        if (!seen.has(envStripped)) {
+          candidates.push(envStripped)
+          seen.add(envStripped)
+        }
+        const wrapperStripped = stripSafeWrappers(cmd)
+        if (!seen.has(wrapperStripped)) {
+          candidates.push(wrapperStripped)
+          seen.add(wrapperStripped)
+        }
+      }
+      startIdx = endIdx
+    }
+    // 对每个候选进行模式匹配
+    // ...
+  }
+}
+</code></pre>
+<p>这个固定点迭代算法处理了交错的环境变量和包装命令模式：<code>timeout 300 FOO=bar bazel run</code> 经过多轮剥离后能正确提取到 <code>bazel run</code> 并匹配 <code>bazel:*</code> 排除规则。</p>
+<p>注释中特别强调：排除命令<strong>不是安全边界</strong>——它是用户便利性功能。真正的安全控制是沙箱权限系统本身。即使能绕过排除命令检测，命令仍然在沙箱内执行。</p>
+<h3 id="1463-沙箱写入白名单与路径验证的交互"><a class="header" href="#1463-沙箱写入白名单与路径验证的交互">14.6.3 沙箱写入白名单与路径验证的交互</a></h3>
+<p>沙箱的写入白名单会影响路径验证的行为：</p>
+<pre><code class="language-typescript">// src/utils/permissions/pathValidation.ts
+export function isPathInSandboxWriteAllowlist(resolvedPath: string): boolean {
+  if (!SandboxManager.isSandboxingEnabled()) return false
+
+  const { allowOnly, denyWithinAllow } = SandboxManager.getFsWriteConfig()
+  const pathsToCheck = getPathsForPermissionCheck(resolvedPath)
+  const resolvedAllow = allowOnly.flatMap(getResolvedSandboxConfigPath)
+  const resolvedDeny = denyWithinAllow.flatMap(getResolvedSandboxConfigPath)
+
+  return pathsToCheck.every(p =&gt; {
+    for (const denyPath of resolvedDeny) {
+      if (pathInWorkingPath(p, denyPath)) return false
+    }
+    return resolvedAllow.some(allowPath =&gt; pathInWorkingPath(p, allowPath))
+  })
+}
+</code></pre>
+<p>沙箱配置路径使用 memoize 缓存了符号链接解析结果，避免每次路径检查都进行昂贵的 <code>lstat</code>/<code>realpath</code> 系统调用。<code>denyWithinAllow</code> 列表确保即使父目录在白名单中，某些敏感文件（如 <code>.claude/settings.json</code>）仍然被保护。</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[命令执行请求] --&gt; B{沙箱已启用?}
+    B --&gt;|否| C[直接执行]
+    B --&gt;|是| D{dangerouslyDisableSandbox?}
+    D --&gt;|是+策略允许| C
+    D --&gt;|否| E{命令匹配排除列表?}
+    E --&gt;|是| C
+    E --&gt;|否| F[沙箱内执行]
+    F --&gt; G[文件系统限制: allowOnly]
+    F --&gt; H[网络限制]
+    F --&gt; I[进程限制]
+    G --&gt; J{路径在 denyWithinAllow?}
+    J --&gt;|是| K[拒绝写入]
+    J --&gt;|否| L{路径在 allowOnly?}
+    L --&gt;|是| M[允许写入]
+    L --&gt;|否| K
+</code></pre>
+<p>整个 Bash 安全体系的设计哲学是<strong>纵深防御</strong>（defense in depth）：从命令解析、模式检测、路径校验到沙箱隔离，每一层都假设前面的层可能被绕过，独立提供保护。即使攻击者找到了某一层的绕过方法，其他层仍然能够限制损害范围。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part5-permission/ch13-permission-model.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part6-mcp/ch15-mcp-protocol.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part5-permission/ch13-permission-model.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part6-mcp/ch15-mcp-protocol.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

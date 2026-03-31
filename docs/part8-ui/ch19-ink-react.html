@@ -1,0 +1,646 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 19 章：React + Ink 终端 UI - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part8-ui/ch19-ink-react.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-19-章react--ink-终端-ui"><a class="header" href="#第-19-章react--ink-终端-ui">第 19 章：React + Ink 终端 UI</a></h1>
+<blockquote>
+<p>“当我们说 Claude Code 是一个 React 应用时，这不是比喻 —— 它真的是一个 React 应用，只不过渲染目标不是浏览器 DOM，而是终端字符矩阵。”</p>
+</blockquote>
+<p>Claude Code 做出了一个大胆的架构决策：使用 React 和 Ink 框架在终端中构建完整的用户界面。这意味着组件化、响应式更新、Hooks、Context、虚拟 DOM diff —— 所有 React 生态的能力都被带入了终端世界。本章将深入剖析这一架构的工作原理。</p>
+<h2 id="191-ink-框架--在终端中运行-react-的原理"><a class="header" href="#191-ink-框架--在终端中运行-react-的原理">19.1 Ink 框架 —— 在终端中运行 React 的原理</a></h2>
+<h3 id="1911-架构概览"><a class="header" href="#1911-架构概览">19.1.1 架构概览</a></h3>
+<p>Ink 是一个将 React 渲染到终端的框架。Claude Code 不仅使用了 Ink，还对其进行了深度定制 —— <code>src/ink/</code> 目录包含了完整的 Ink 实现，而非作为外部依赖引入：</p>
+<pre><code>src/ink/
+├── ink.tsx           # Ink 主类 - 渲染循环核心
+├── reconciler.ts     # React Reconciler 自定义实现
+├── dom.ts            # 终端 DOM 节点定义
+├── renderer.ts       # 帧渲染器
+├── output.ts         # 输出缓冲区
+├── screen.ts         # 屏幕字符矩阵
+├── optimizer.ts      # 输出优化
+├── selection.ts      # 文本选择系统
+├── focus.ts          # 焦点管理
+├── components/       # 基础组件 (Box, Text, ScrollBox...)
+├── hooks/            # 自定义 Hooks
+├── events/           # 事件系统
+├── layout/           # Yoga 布局引擎接口
+├── termio/           # ANSI 终端 I/O
+└── termio.ts         # ANSI 解析器入口
+</code></pre>
+<h3 id="1912-渲染管线"><a class="header" href="#1912-渲染管线">19.1.2 渲染管线</a></h3>
+<pre><code class="language-mermaid">flowchart LR
+    JSX[React JSX&lt;br/&gt;组件树] --&gt; Reconciler[React Reconciler&lt;br/&gt;Fiber 树 diff]
+    Reconciler --&gt; DOM[Ink DOM&lt;br/&gt;虚拟节点树]
+    DOM --&gt; Yoga[Yoga Layout&lt;br/&gt;Flexbox 计算]
+    Yoga --&gt; Render[renderNodeToOutput&lt;br/&gt;遍历节点树]
+    Render --&gt; Screen[Screen&lt;br/&gt;字符矩阵]
+    Screen --&gt; Diff[终端 Diff&lt;br/&gt;最小更新]
+    Diff --&gt; Terminal[ANSI 输出&lt;br/&gt;终端显示]
+</code></pre>
+<p>整个渲染管线可以类比浏览器的渲染流程：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>浏览器</th><th>Ink 终端</th></tr>
+</thead>
+<tbody>
+<tr><td>HTML DOM</td><td>Ink DOM (<code>DOMElement</code>, <code>TextNode</code>)</td></tr>
+<tr><td>CSS Layout</td><td>Yoga Flexbox</td></tr>
+<tr><td>Paint</td><td><code>renderNodeToOutput</code></td></tr>
+<tr><td>Compositing</td><td><code>Screen</code> 字符矩阵</td></tr>
+<tr><td>Display</td><td>ANSI escape sequences</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="1913-ink-主类"><a class="header" href="#1913-ink-主类">19.1.3 Ink 主类</a></h3>
+<p><code>src/ink/ink.tsx</code> 中的 <code>Ink</code> 类是渲染循环的核心。它使用 <code>react-reconciler</code> 创建 Fiber 树，并通过节流的帧循环将变更刷新到终端：</p>
+<pre><code class="language-typescript">// src/ink/ink.tsx
+import createReconciler from 'react-reconciler'
+import { ConcurrentRoot } from 'react-reconciler/constants.js'
+
+// 使用 Concurrent Mode 创建 Reconciler
+const reconciler = createReconciler({
+  // React Reconciler 宿主配置
+  createInstance,
+  createTextInstance,
+  appendChildToContainer,
+  appendChild,
+  removeChild,
+  commitUpdate,
+  // ... 30+ 方法实现
+})
+
+// 帧间隔：默认约 16ms (60fps)
+import { FRAME_INTERVAL_MS } from './constants.js'
+</code></pre>
+<p>关键设计：使用 <code>ConcurrentRoot</code> 而非 <code>LegacyRoot</code>，这意味着 React 的并发特性（Suspense、startTransition、useDeferredValue）在终端中同样可用。REPL 组件大量使用了 <code>useDeferredValue</code> 来延迟非关键更新。</p>
+<h3 id="1914-alt-screen-模式"><a class="header" href="#1914-alt-screen-模式">19.1.4 Alt-Screen 模式</a></h3>
+<p>Claude Code 运行在终端的备用屏幕（Alt-Screen）中。这是一种终端特性，允许程序拥有独立的屏幕缓冲区，退出时自动恢复原始内容：</p>
+<pre><code class="language-typescript">// Alt-screen 下，光标始终不可见（使用固定对象避免每帧分配）
+const ALT_SCREEN_ANCHOR_CURSOR = Object.freeze({
+  x: 0,
+  y: 0,
+  visible: false
+});
+</code></pre>
+<p>进入/退出 Alt-Screen 通过 DEC 私有模式序列控制：</p>
+<pre><code class="language-typescript">// src/ink/termio/dec.ts
+export const ENTER_ALT_SCREEN = '\x1b[?1049h'
+export const EXIT_ALT_SCREEN = '\x1b[?1049l'
+</code></pre>
+<h2 id="192-yoga-布局--flexbox-在终端的适配"><a class="header" href="#192-yoga-布局--flexbox-在终端的适配">19.2 Yoga 布局 —— Flexbox 在终端的适配</a></h2>
+<h3 id="1921-yoga-布局引擎"><a class="header" href="#1921-yoga-布局引擎">19.2.1 Yoga 布局引擎</a></h3>
+<p>Yoga 是 Facebook 开发的跨平台 Flexbox 布局引擎，最初用于 React Native。Claude Code 将其编译为 WASM 并集成到终端渲染中。每个 <code>Box</code> 组件对应一个 Yoga 节点：</p>
+<pre><code class="language-typescript">// src/ink/reconciler.ts
+function applyProp(node: DOMElement, key: string, value: unknown): void {
+  if (key === 'style') {
+    setStyle(node, value as Styles)
+    if (node.yogaNode) {
+      applyStyles(node.yogaNode, value as Styles)
+    }
+    return
+  }
+  // ...
+}
+</code></pre>
+<h3 id="1922-终端-flexbox-约束"><a class="header" href="#1922-终端-flexbox-约束">19.2.2 终端 Flexbox 约束</a></h3>
+<p>终端 Flexbox 与 Web Flexbox 有关键差异：</p>
+<pre><code class="language-mermaid">graph TB
+    subgraph "Web Flexbox"
+        W1[像素级精度]
+        W2[浮点数尺寸]
+        W3[子像素渲染]
+        W4[无限画布]
+    end
+
+    subgraph "终端 Flexbox"
+        T1[字符级精度]
+        T2[整数列/行]
+        T3[等宽字符&lt;br/&gt;但 CJK 字符占 2 列]
+        T4[固定终端尺寸]
+    end
+</code></pre>
+<p>终端中一个“字符“是最小的布局单元。CJK 字符（中日韩）占据 2 列宽度，这在宽度计算中必须特殊处理。<code>src/ink/stringWidth.ts</code> 和 <code>src/ink/line-width-cache.ts</code> 专门处理这一问题。</p>
+<h3 id="1923-yoga-节点生命周期"><a class="header" href="#1923-yoga-节点生命周期">19.2.3 Yoga 节点生命周期</a></h3>
+<pre><code class="language-typescript">// 创建节点时分配 Yoga 节点
+const createNode = (tagName: ElementNames): DOMElement =&gt; {
+  const node = { /* ... */ }
+  node.yogaNode = Yoga.Node.create()
+  return node
+}
+
+// 清理节点时释放 WASM 内存
+const cleanupYogaNode = (node: DOMElement | TextNode): void =&gt; {
+  const yogaNode = node.yogaNode
+  if (yogaNode) {
+    yogaNode.unsetMeasureFunc()
+    clearYogaNodeReferences(node)
+    yogaNode.freeRecursive()  // 释放 WASM 内存
+  }
+}
+</code></pre>
+<p>注意 <code>freeRecursive()</code> 调用 —— Yoga 节点存在于 WASM 内存中，不受 JavaScript GC 管理，必须手动释放。<code>clearYogaNodeReferences</code> 在释放前清除所有引用，防止其他代码在并发操作中访问已释放的 WASM 内存。</p>
+<h2 id="193-组件体系--340-组件的设计分层"><a class="header" href="#193-组件体系--340-组件的设计分层">19.3 组件体系 —— 340+ 组件的设计分层</a></h2>
+<h3 id="1931-组件层次结构"><a class="header" href="#1931-组件层次结构">19.3.1 组件层次结构</a></h3>
+<p>Claude Code 的组件分为三个层次：</p>
+<pre><code class="language-mermaid">graph TD
+    subgraph "Layer 1: Ink 基础组件 (15)"
+        B[Box] --- T[Text]
+        B --- SB[ScrollBox]
+        B --- NL[Newline]
+        B --- SP[Spacer]
+        B --- BTN[Button]
+        B --- LK[Link]
+    end
+
+    subgraph "Layer 2: 设计系统组件"
+        DS[design-system/]
+        DS --- TT[ThemedText]
+        DS --- TI[TextInput]
+        DS --- SL[Select]
+    end
+
+    subgraph "Layer 3: 业务组件 (340+)"
+        PI[PromptInput/] --- MS[Messages]
+        MS --- MR[MessageRow]
+        MR --- HC[HighlightedCode]
+        PI --- PIF[PromptInputFooter]
+        PI --- MI[ModeIndicator]
+    end
+</code></pre>
+<h3 id="1932-ink-基础组件"><a class="header" href="#1932-ink-基础组件">19.3.2 Ink 基础组件</a></h3>
+<p><code>src/ink/components/</code> 中的基础组件是整个 UI 的构建块：</p>
+<p><strong>Box</strong> —— 终端中的 <code>&lt;div&gt;</code>，支持 Flexbox 布局：</p>
+<pre><code class="language-typescript">// src/ink/components/Box.tsx
+// 支持的样式属性包括：
+// flexDirection, alignItems, justifyContent,
+// width, height, minWidth, minHeight, maxWidth,
+// padding, margin, borderStyle, overflow
+</code></pre>
+<p><strong>ScrollBox</strong> —— 可滚动容器，这是终端 UI 中最复杂的组件之一。它需要处理虚拟化（不渲染屏幕外的内容）、滚动条、鼠标滚轮事件：</p>
+<pre><code class="language-typescript">// src/ink/components/ScrollBox.tsx
+export type ScrollBoxHandle = {
+  scrollTo: (offset: number) =&gt; void
+  scrollToBottom: () =&gt; void
+  getScrollTop: () =&gt; number
+  getContentHeight: () =&gt; number
+}
+</code></pre>
+<p><strong>Text</strong> —— 终端中的文本节点，支持颜色、加粗、斜体、下划线、链接等样式。</p>
+<h3 id="1933-业务组件矩阵"><a class="header" href="#1933-业务组件矩阵">19.3.3 业务组件矩阵</a></h3>
+<p><code>src/components/</code> 目录包含 340+ 个业务组件，覆盖了应用的每个功能面：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>类别</th><th>代表组件</th><th>数量</th></tr>
+</thead>
+<tbody>
+<tr><td>输入</td><td>PromptInput, TextInput, VimTextInput</td><td>~20</td></tr>
+<tr><td>消息</td><td>Messages, MessageRow, VirtualMessageList</td><td>~30</td></tr>
+<tr><td>权限</td><td>PermissionRequest, TrustDialog</td><td>~15</td></tr>
+<tr><td>Diff</td><td>StructuredDiff, FileEditToolDiff</td><td>~10</td></tr>
+<tr><td>MCP</td><td>MCPServerApprovalDialog</td><td>~10</td></tr>
+<tr><td>Agent</td><td>CoordinatorAgentStatus, TeammateViewHeader</td><td>~15</td></tr>
+<tr><td>设置</td><td>Settings, ModelPicker, ThemePicker</td><td>~15</td></tr>
+<tr><td>代码</td><td>HighlightedCode, Markdown</td><td>~10</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="1934-virtualmessagelist--虚拟列表"><a class="header" href="#1934-virtualmessagelist--虚拟列表">19.3.4 VirtualMessageList —— 虚拟列表</a></h3>
+<p>对话界面使用虚拟列表优化性能，只渲染可见区域的消息：</p>
+<pre><code class="language-typescript">// src/components/VirtualMessageList.tsx
+export type JumpHandle = {
+  jumpToIndex: (i: number) =&gt; void
+  setSearchQuery: (q: string) =&gt; void
+  nextMatch: () =&gt; void
+  prevMatch: () =&gt; void
+  setAnchor: () =&gt; void
+}
+</code></pre>
+<p>虚拟列表维护搜索高亮状态，支持 <code>/</code> 搜索和 <code>n</code>/<code>N</code> 跳转 —— 这是仿 Vim 的交互模式。<code>WeakMap</code> 用于缓存每条消息的搜索文本（小写化后），避免重复计算。</p>
+<h2 id="194-键盘事件--全局快捷键系统"><a class="header" href="#194-键盘事件--全局快捷键系统">19.4 键盘事件 —— 全局快捷键系统</a></h2>
+<h3 id="1941-键绑定架构"><a class="header" href="#1941-键绑定架构">19.4.1 键绑定架构</a></h3>
+<p>Claude Code 实现了一套完整的键绑定系统，支持上下文感知、用户自定义和组合键：</p>
+<pre><code>src/keybindings/
+├── defaultBindings.ts      # 默认键绑定
+├── KeybindingContext.tsx    # React Context
+├── KeybindingProviderSetup.tsx  # Provider 设置
+├── loadUserBindings.ts     # 用户自定义加载
+├── match.ts               # 按键匹配算法
+├── parser.ts              # 按键序列解析
+├── reservedShortcuts.ts   # 不可覆盖的快捷键
+├── resolver.ts            # 绑定解析器
+├── schema.ts              # 配置 Schema
+├── shortcutFormat.ts      # 显示格式化
+├── template.ts            # 模板引擎
+├── useKeybinding.ts       # Hook API
+├── useShortcutDisplay.ts  # 快捷键提示显示
+└── validate.ts            # 配置验证
+</code></pre>
+<h3 id="1942-上下文分层"><a class="header" href="#1942-上下文分层">19.4.2 上下文分层</a></h3>
+<p>键绑定按上下文（Context）组织，不同的 UI 状态激活不同的绑定集：</p>
+<pre><code class="language-typescript">// src/keybindings/defaultBindings.ts
+export const DEFAULT_BINDINGS: KeybindingBlock[] = [
+  {
+    context: 'Global',
+    bindings: {
+      'ctrl+c': 'app:interrupt',
+      'ctrl+d': 'app:exit',
+      'ctrl+l': 'app:redraw',
+      'ctrl+t': 'app:toggleTodos',
+      'ctrl+o': 'app:toggleTranscript',
+      'ctrl+r': 'history:search',
+    },
+  },
+  {
+    context: 'Chat',
+    bindings: {
+      escape: 'chat:cancel',
+      'ctrl+x ctrl+k': 'chat:killAgents',  // 组合键（chord）
+      'shift+tab': 'chat:cycleMode',
+      'meta+p': 'chat:modelPicker',
+      enter: 'chat:submit',
+      up: 'history:previous',
+      down: 'history:next',
+      'ctrl+_': 'chat:undo',
+      'ctrl+g': 'chat:externalEditor',
+      'ctrl+s': 'chat:stash',
+    },
+  },
+  {
+    context: 'Autocomplete',
+    bindings: {
+      tab: 'autocomplete:accept',
+      escape: 'autocomplete:dismiss',
+    },
+  },
+]
+</code></pre>
+<h3 id="1943-chord-键组合键序列"><a class="header" href="#1943-chord-键组合键序列">19.4.3 Chord 键（组合键序列）</a></h3>
+<p>注意 <code>'ctrl+x ctrl+k': 'chat:killAgents'</code> —— 这是 Emacs 风格的 chord 键，需要按顺序按下两个组合键。实现上，系统维护一个 chord 前缀状态：</p>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Idle
+    Idle --&gt; ChordWait: ctrl+x 按下
+    ChordWait --&gt; Execute: ctrl+k 按下 → chat:killAgents
+    ChordWait --&gt; Idle: 超时或其他键
+    Idle --&gt; Execute: ctrl+c 按下 → app:interrupt（直接执行）
+</code></pre>
+<h3 id="1944-平台适配"><a class="header" href="#1944-平台适配">19.4.4 平台适配</a></h3>
+<p>键绑定包含平台特定的适配：</p>
+<pre><code class="language-typescript">// Windows 上 ctrl+v 是系统粘贴，用 alt+v 代替
+const IMAGE_PASTE_KEY = getPlatform() === 'windows' ? 'alt+v' : 'ctrl+v'
+
+// Windows Terminal 在没有 VT mode 时 shift+tab 不工作
+const MODE_CYCLE_KEY = SUPPORTS_TERMINAL_VT_MODE ? 'shift+tab' : 'meta+m'
+</code></pre>
+<p>代码中引用了具体的 Node.js/Bun 版本号（<code>satisfies(process.versions.bun, '&gt;=1.2.23')</code>），说明团队对终端兼容性问题有深入的追踪。</p>
+<h3 id="1945-保留快捷键"><a class="header" href="#1945-保留快捷键">19.4.5 保留快捷键</a></h3>
+<p>某些快捷键（<code>ctrl+c</code>、<code>ctrl+d</code>）使用特殊的双击时间窗口处理，且不允许用户覆盖：</p>
+<pre><code class="language-typescript">// ctrl+c 和 ctrl+d 使用特殊的基于时间的双击处理。
+// 它们在这里定义以便 resolver 可以找到它们，
+// 但不能被用户重绑定 — reservedShortcuts.ts 中的验证
+// 会在用户尝试覆盖这些键时显示错误。
+'ctrl+c': 'app:interrupt',
+'ctrl+d': 'app:exit',
+</code></pre>
+<h2 id="195-终端-io--抽象层设计"><a class="header" href="#195-终端-io--抽象层设计">19.5 终端 I/O —— 抽象层设计</a></h2>
+<h3 id="1951-ansi-解析器"><a class="header" href="#1951-ansi-解析器">19.5.1 ANSI 解析器</a></h3>
+<p><code>src/ink/termio.ts</code> 导出了一个完整的 ANSI 转义序列解析器，灵感来自 ghostty、tmux 和 iTerm2：</p>
+<pre><code class="language-typescript">/**
+ * ANSI Parser Module
+ *
+ * Key features:
+ * - Semantic output: produces structured actions, not string tokens
+ * - Streaming: can parse input incrementally via Parser class
+ * - Style tracking: maintains text style state across parse calls
+ * - Comprehensive: supports SGR, CSI, OSC, ESC sequences
+ */
+
+// 用法：
+const parser = new Parser()
+const actions = parser.feed('\x1b[31mred\x1b[0m')
+// =&gt; [{ type: 'text', graphemes: [...],
+//       style: { fg: { type: 'named', name: 'red' } } }]
+</code></pre>
+<h3 id="1952-csioscdec-序列"><a class="header" href="#1952-csioscdec-序列">19.5.2 CSI/OSC/DEC 序列</a></h3>
+<p>终端 I/O 层按序列类型组织：</p>
+<pre><code>src/ink/termio/
+├── parser.ts    # 主解析器状态机
+├── tokenize.ts  # 字节流分词
+├── sgr.ts       # Select Graphic Rendition (颜色、样式)
+├── csi.ts       # Control Sequence Introducer (光标、清屏)
+├── osc.ts       # Operating System Command (标题、剪贴板)
+├── dec.ts       # DEC Private Mode (鼠标、Alt-Screen)
+├── esc.ts       # 基本 Escape 序列
+├── ansi.ts      # ANSI 常量
+└── types.ts     # 类型定义
+</code></pre>
+<p>关键序列示例：</p>
+<pre><code class="language-typescript">// src/ink/termio/csi.ts
+export const CURSOR_HOME = '\x1b[H'           // 光标回到原点
+export const ERASE_SCREEN = '\x1b[2J'         // 清除屏幕
+export function cursorMove(dx: number, dy: number): string {
+  // 生成相对光标移动序列
+}
+
+// src/ink/termio/dec.ts
+export const ENABLE_MOUSE_TRACKING = '\x1b[?1000h\x1b[?1003h\x1b[?1006h'
+export const DISABLE_MOUSE_TRACKING = '\x1b[?1000l\x1b[?1003l\x1b[?1006l'
+
+// src/ink/termio/osc.ts
+export function setClipboard(data: string): string {
+  // OSC 52 序列，将数据写入终端剪贴板
+}
+</code></pre>
+<h3 id="1953-screen-字符矩阵"><a class="header" href="#1953-screen-字符矩阵">19.5.3 Screen 字符矩阵</a></h3>
+<p><code>src/ink/screen.ts</code> 实现了一个高性能的屏幕缓冲区，使用对象池（Pool）优化内存分配：</p>
+<pre><code class="language-typescript">// src/ink/screen.ts
+export const CellWidth = { NARROW: 1, WIDE: 2 }
+
+// 对象池避免频繁的 GC
+export const CharPool = /* ... */     // 字符对象池
+export const StylePool = /* ... */    // 样式对象池
+export const HyperlinkPool = /* ... */ // 超链接对象池
+
+export function createScreen(width: number, height: number): Screen {
+  // 创建字符矩阵
+}
+
+export function cellAt(screen: Screen, x: number, y: number): Cell {
+  // 访问指定位置的字符单元
+}
+</code></pre>
+<h3 id="1954-差异化输出"><a class="header" href="#1954-差异化输出">19.5.4 差异化输出</a></h3>
+<p><code>writeDiffToTerminal</code> 实现了终端的增量更新 —— 比较前后两帧的 Screen，只输出变化的部分：</p>
+<pre><code class="language-mermaid">graph LR
+    subgraph "Frame N"
+        F1["H e l l o"]
+        F2["W o r l d"]
+    end
+
+    subgraph "Frame N+1"
+        G1["H e l l o"]
+        G2["C l a u d e"]
+    end
+
+    subgraph "Diff Output"
+        D1[移动光标到 (0,1)]
+        D2[输出 "Claude"]
+    end
+
+    F1 --&gt; |不变| G1
+    F2 --&gt; |变化| D1
+    D1 --&gt; D2
+</code></pre>
+<p>这种差异化更新是终端应用流畅的关键。不同于 Web 浏览器的增量 DOM 更新，终端中每次“全屏重绘“意味着输出整个屏幕的字符序列，会导致明显的闪烁。差异化只在必要位置发送 ANSI 序列，最小化输出量。</p>
+<h3 id="1955-kitty-键盘协议"><a class="header" href="#1955-kitty-键盘协议">19.5.5 Kitty 键盘协议</a></h3>
+<p>Claude Code 支持 Kitty 键盘协议，这是一种现代终端扩展，能区分按键修饰符的组合：</p>
+<pre><code class="language-typescript">// src/ink/termio/csi.ts
+export const ENABLE_KITTY_KEYBOARD = '\x1b[&gt;1u'
+export const DISABLE_KITTY_KEYBOARD = '\x1b[&lt;u'
+export const ENABLE_MODIFY_OTHER_KEYS = '\x1b[&gt;4;1m'
+export const DISABLE_MODIFY_OTHER_KEYS = '\x1b[&gt;4;0m'
+</code></pre>
+<p>Kitty 协议允许区分 <code>ctrl+shift+f</code> 和 <code>ctrl+f</code> —— 在传统终端中这两者会产生相同的控制字符。Claude Code 利用这一能力实现了更丰富的快捷键（如 <code>cmd+shift+f</code> 用于全局搜索）。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>React + Ink 的终端 UI 架构是 Claude Code 最富创新性的技术决策之一。它证明了 React 的组件模型和渲染管线可以适配到任何输出目标 —— 浏览器 DOM、Native View、甚至字符矩阵。</p>
+<p>深度定制的 Ink 框架（而非作为外部依赖使用）给予了团队完全的控制权：从 Yoga WASM 内存管理到 Kitty 键盘协议支持，从差异化终端输出到对象池内存优化。340+ 个业务组件的规模也说明，这不是一个“玩具级“的终端 UI，而是一个生产级的富应用。</p>
+<p>下一章我们将聚焦 REPL 组件 —— 这个 5000 行的巨型组件如何组织代码、处理输入、渲染消息、管理权限对话。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part7-state/ch18-conversation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part8-ui/ch20-repl.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part7-state/ch18-conversation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part8-ui/ch20-repl.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

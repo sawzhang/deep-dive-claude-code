@@ -1,0 +1,774 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 8 章：内置工具深度解析 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part3-tool-system/ch08-builtin-tools.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-8-章内置工具深度解析"><a class="header" href="#第-8-章内置工具深度解析">第 8 章：内置工具深度解析</a></h1>
+<blockquote>
+<p>“工具既是手的延伸，也是心智的延伸。” —— Marshall McLuhan</p>
+</blockquote>
+<p>如果说 Tool 接口定义了工具的骨骼，那么具体的工具实现就是肌肉与血液。Claude Code 内置了超过 40 个工具，涵盖了 shell 执行、文件操作、代码搜索、网络访问和任务管理等核心能力。本章将选取最具代表性的工具进行深度剖析，揭示它们在安全性、性能和用户体验方面的精巧设计。</p>
+<h2 id="81-bashtool--最复杂的单一工具"><a class="header" href="#81-bashtool--最复杂的单一工具">8.1 BashTool —— 最复杂的单一工具</a></h2>
+<h3 id="811-复杂度概览"><a class="header" href="#811-复杂度概览">8.1.1 复杂度概览</a></h3>
+<p>BashTool 是 Claude Code 中最复杂的单一工具。其实现涉及 18 个文件，从 <code>BashTool.tsx</code> 主文件到 <code>bashPermissions.ts</code>、<code>bashSecurity.ts</code>、<code>commandSemantics.ts</code>、<code>sedEditParser.ts</code>、<code>shouldUseSandbox.ts</code> 等辅助模块。这种复杂度源于 shell 命令执行在安全领域的特殊地位——它是所有工具中攻击面最大的。</p>
+<pre><code>src/tools/BashTool/
+├── BashTool.tsx              # 主实现（schema 定义、call 方法、UI 渲染）
+├── bashPermissions.ts        # 权限检查：命令解析、规则匹配、分类器
+├── bashSecurity.ts           # 安全检查：命令安全性评估
+├── commandSemantics.ts       # 命令语义解释（退出码含义）
+├── sedEditParser.ts          # sed 命令特殊处理（作为文件编辑）
+├── readOnlyValidation.ts     # 只读约束检查
+├── modeValidation.ts         # 模式验证
+├── pathValidation.ts         # 路径安全检查
+├── sedValidation.ts          # sed 命令验证
+├── shouldUseSandbox.ts       # 沙箱判断逻辑
+├── bashCommandHelpers.ts     # 复合命令辅助函数
+├── destructiveCommandWarning.ts # 破坏性命令警告
+├── prompt.ts                 # 系统提示生成
+├── toolName.ts               # 工具名称常量
+├── commentLabel.ts           # 注释标签
+├── utils.ts                  # 通用工具函数
+├── UI.tsx                    # React UI 组件
+└── BashToolResultMessage.tsx # 结果展示组件
+</code></pre>
+<h3 id="812-输入-schema"><a class="header" href="#812-输入-schema">8.1.2 输入 Schema</a></h3>
+<p>BashTool 的输入 schema 经过精心设计，包含多个字段：</p>
+<pre><code class="language-typescript">// src/tools/BashTool/BashTool.tsx
+const fullInputSchema = lazySchema(() =&gt; z.strictObject({
+  command: z.string().describe('The command to execute'),
+  timeout: semanticNumber(z.number().optional()).describe(
+    `Optional timeout in milliseconds (max ${getMaxTimeoutMs()})`
+  ),
+  description: z.string().optional().describe(
+    'Clear, concise description of what this command does in active voice...'
+  ),
+  run_in_background: semanticBoolean(z.boolean().optional()).describe(
+    'Set to true to run this command in the background.'
+  ),
+  dangerouslyDisableSandbox: semanticBoolean(z.boolean().optional()).describe(
+    'Set this to true to dangerously override sandbox mode...'
+  ),
+  _simulatedSedEdit: z.object({
+    filePath: z.string(),
+    newContent: z.string()
+  }).optional().describe('Internal: pre-computed sed edit result from preview')
+}))
+</code></pre>
+<p>几个值得关注的设计点：</p>
+<p><strong><code>semanticNumber</code> / <code>semanticBoolean</code> 包装器。</strong> 这些函数处理模型生成的“语义化“值——模型有时会把布尔值作为字符串 <code>"true"</code> 发送，或者把数字作为字符串 <code>"42"</code> 发送。这些包装器能容错地解析这些情况。</p>
+<p><strong><code>_simulatedSedEdit</code> 的隐藏与防注入。</strong> 该字段是内部使用的，在发送给模型的 schema 中被显式移除：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt;
+  fullInputSchema().omit({ _simulatedSedEdit: true, /* ... */ })
+)
+</code></pre>
+<p>同时，<code>toolExecution.ts</code> 中还有一道防线，如果模型试图在输入中注入这个字段，会被强制剥离：</p>
+<pre><code class="language-typescript">// src/services/tools/toolExecution.ts
+if (tool.name === BASH_TOOL_NAME &amp;&amp; processedInput &amp;&amp;
+    typeof processedInput === 'object' &amp;&amp; '_simulatedSedEdit' in processedInput) {
+  const { _simulatedSedEdit: _, ...rest } = processedInput
+  processedInput = rest
+}
+</code></pre>
+<p>这是一个经典的纵深防御——即使 schema 验证被绕过，运行时也会拦截。</p>
+<h3 id="813-并发安全性与只读判断"><a class="header" href="#813-并发安全性与只读判断">8.1.3 并发安全性与只读判断</a></h3>
+<p>BashTool 的 <code>isConcurrencySafe</code> 直接委托给 <code>isReadOnly</code>：</p>
+<pre><code class="language-typescript">isConcurrencySafe(input) {
+  return this.isReadOnly?.(input) ?? false
+},
+isReadOnly(input) {
+  const compoundCommandHasCd = commandHasAnyCd(input.command)
+  const result = checkReadOnlyConstraints(input, compoundCommandHasCd)
+  return result.behavior === 'allow'
+},
+</code></pre>
+<p>这意味着只有确认为只读的命令才会被标记为并发安全。<code>checkReadOnlyConstraints</code> 会解析命令的 AST，检查是否包含任何写操作。</p>
+<h3 id="814-命令语义分类"><a class="header" href="#814-命令语义分类">8.1.4 命令语义分类</a></h3>
+<p>BashTool 能够识别命令类型来优化 UI 呈现：</p>
+<pre><code class="language-typescript">// 搜索命令 -- 在 UI 中折叠显示
+const BASH_SEARCH_COMMANDS = new Set([
+  'find', 'grep', 'rg', 'ag', 'ack', 'locate', 'which', 'whereis'
+])
+
+// 读取命令 -- 在 UI 中折叠显示
+const BASH_READ_COMMANDS = new Set([
+  'cat', 'head', 'tail', 'less', 'more',
+  'wc', 'stat', 'file', 'strings',
+  'jq', 'awk', 'cut', 'sort', 'uniq', 'tr'
+])
+
+// 目录列表命令
+const BASH_LIST_COMMANDS = new Set(['ls', 'tree', 'du'])
+
+// 语义中立命令 -- 不改变管道的读/搜索性质
+const BASH_SEMANTIC_NEUTRAL_COMMANDS = new Set([
+  'echo', 'printf', 'true', 'false', ':'
+])
+
+// 静默命令 -- 成功时无输出，显示 "Done" 而非 "(No output)"
+const BASH_SILENT_COMMANDS = new Set([
+  'mv', 'cp', 'rm', 'mkdir', 'rmdir', 'chmod', 'chown',
+  'chgrp', 'touch', 'ln', 'cd', 'export', 'unset', 'wait'
+])
+</code></pre>
+<p><code>isSearchOrReadBashCommand</code> 的分析逻辑对复合命令有特殊处理——对于管道（<code>|</code>）和链式命令（<code>&amp;&amp;</code>、<code>;</code>），所有部分都必须是搜索/读取命令，整个命令才被视为搜索/读取操作。语义中立命令被跳过，不影响判定：</p>
+<pre><code class="language-typescript">export function isSearchOrReadBashCommand(command: string) {
+  const partsWithOperators = splitCommandWithOperators(command)
+  let hasSearch = false, hasRead = false, hasList = false
+  for (const part of partsWithOperators) {
+    // 跳过操作符和重定向目标
+    if (['||', '&amp;&amp;', '|', ';'].includes(part)) continue
+    const baseCommand = part.trim().split(/\s+/)[0]
+    // 语义中立命令不影响判断
+    if (BASH_SEMANTIC_NEUTRAL_COMMANDS.has(baseCommand)) continue
+    // 任何非搜索/读取命令都会使整个命令不可折叠
+    if (!BASH_SEARCH_COMMANDS.has(baseCommand) &amp;&amp;
+        !BASH_READ_COMMANDS.has(baseCommand) &amp;&amp;
+        !BASH_LIST_COMMANDS.has(baseCommand)) {
+      return { isSearch: false, isRead: false, isList: false }
+    }
+    // ... 累积标记
+  }
+}
+</code></pre>
+<h3 id="815-权限检查的多层防线"><a class="header" href="#815-权限检查的多层防线">8.1.5 权限检查的多层防线</a></h3>
+<p>BashTool 的权限检查通过 <code>bashToolHasPermission</code> 函数实现，是整个系统中最复杂的权限检查流程。它包括：</p>
+<ol>
+<li><strong>模式检查</strong>（<code>checkPermissionMode</code>）– 检查当前是否在 plan 模式等特殊模式下</li>
+<li><strong>路径约束检查</strong>（<code>checkPathConstraints</code>）– 确保命令不会操作受限路径</li>
+<li><strong>沙箱判断</strong>（<code>shouldUseSandbox</code>）– 决定是否在沙箱中执行</li>
+<li><strong>规则匹配</strong> —— 与 <code>allow</code>/<code>deny</code>/<code>ask</code> 规则列表匹配</li>
+<li><strong>安全分类器</strong>（<code>classifyBashCommand</code>）– 异步 ML 分类器判断命令安全性</li>
+<li><strong>sed 特殊处理</strong>（<code>checkSedConstraints</code>）– sed in-place 编辑的特殊权限路径</li>
+</ol>
+<p>权限检查还有一个性能优化——推测性分类器预启动：</p>
+<pre><code class="language-typescript">// src/services/tools/toolExecution.ts
+if (tool.name === BASH_TOOL_NAME &amp;&amp; parsedInput.data &amp;&amp; 'command' in parsedInput.data) {
+  startSpeculativeClassifierCheck(
+    parsedInput.data.command,
+    appState.toolPermissionContext,
+    toolUseContext.abortController.signal,
+    toolUseContext.options.isNonInteractiveSession,
+  )
+}
+</code></pre>
+<p>这段代码在输入验证通过后立即启动分类器检查，而不等到权限检查阶段。这样分类器可以与 pre-tool hooks 并行运行，减少用户等待时间。</p>
+<h3 id="816-安全校验流程"><a class="header" href="#816-安全校验流程">8.1.6 安全校验流程</a></h3>
+<pre><code class="language-mermaid">flowchart TD
+    A[模型调用 BashTool] --&gt; B[输入验证 Zod safeParse]
+    B --&gt;|失败| Z[返回错误]
+    B --&gt;|成功| C[剥离 _simulatedSedEdit]
+    C --&gt; D[推测性启动分类器]
+    C --&gt; E[Pre-tool hooks]
+    D --&gt; F{并行等待}
+    E --&gt; F
+    F --&gt; G[checkPermissionMode]
+    G --&gt; H[checkPathConstraints]
+    H --&gt; I[规则匹配 allow/deny/ask]
+    I --&gt;|allow 规则匹配| J[允许执行]
+    I --&gt;|deny 规则匹配| Z
+    I --&gt;|ask 或无匹配| K[分类器结果]
+    K --&gt;|allow| J
+    K --&gt;|deny| Z
+    K --&gt;|ask| L[弹出权限对话框]
+    L --&gt;|用户允许| J
+    L --&gt;|用户拒绝| Z
+    J --&gt; M{shouldUseSandbox?}
+    M --&gt;|是| N[沙箱执行]
+    M --&gt;|否| O[直接执行]
+    N --&gt; P[exec 命令]
+    O --&gt; P
+    P --&gt; Q[Post-tool hooks]
+    Q --&gt; R[返回结果]
+</code></pre>
+<h2 id="82-文件操作三剑客--filereadtool--fileedittool--filewritetool"><a class="header" href="#82-文件操作三剑客--filereadtool--fileedittool--filewritetool">8.2 文件操作三剑客 —— FileReadTool / FileEditTool / FileWriteTool</a></h2>
+<h3 id="821-filereadtool--智能文件读取"><a class="header" href="#821-filereadtool--智能文件读取">8.2.1 FileReadTool —— 智能文件读取</a></h3>
+<p>FileReadTool 不是一个简单的 <code>cat</code> 包装。它支持读取普通文本文件、图片（作为视觉内容返回）、PDF（按页提取）、Jupyter Notebook（解析所有 cell）等多种格式。</p>
+<pre><code class="language-typescript">// src/tools/FileReadTool/FileReadTool.ts（关键属性）
+export const FileReadTool = buildTool({
+  name: FILE_READ_TOOL_NAME,
+  maxResultSizeChars: Infinity,  // 注意：Infinity！
+  isConcurrencySafe() { return true },
+  isReadOnly() { return true },
+  // ...
+})
+</code></pre>
+<p><code>maxResultSizeChars: Infinity</code> 是一个关键设计——FileReadTool 的输出永远不会被持久化到磁盘。源码注释解释道：</p>
+<blockquote>
+<p><em>“Set to Infinity for tools whose output must never be persisted (e.g. Read, where persisting creates a circular Read -&gt; file -&gt; Read loop and the tool already self-bounds via its own limits).”</em></p>
+</blockquote>
+<p>如果将读取结果保存到临时文件，模型可能会再次用 Read 读取那个临时文件，形成无限循环。</p>
+<p>FileReadTool 还有一个安全特性——阻止读取危险的设备文件：</p>
+<pre><code class="language-typescript">const BLOCKED_DEVICE_PATHS = new Set([
+  '/dev/zero',    // 无限输出，永远不会 EOF
+  '/dev/random', '/dev/urandom',  // 同上
+  '/dev/stdin', '/dev/fd/0',      // 阻塞等待输入
+  // ...
+])
+</code></pre>
+<h3 id="822-fileedittool--精确字符串替换"><a class="header" href="#822-fileedittool--精确字符串替换">8.2.2 FileEditTool —— 精确字符串替换</a></h3>
+<p>FileEditTool 的核心理念是“精确替换“而非“全文重写“——通过 <code>old_string</code> 和 <code>new_string</code> 实现对文件的最小化修改：</p>
+<pre><code class="language-typescript">// src/tools/FileEditTool/types.ts
+const inputSchema = lazySchema(() =&gt; z.strictObject({
+  file_path: z.string().describe('The absolute path to the file to modify'),
+  old_string: z.string().describe('The text to replace'),
+  new_string: z.string().describe('The text to replace it with'),
+  replace_all: z.boolean().default(false).describe(
+    'Replace all occurrences of old_string'
+  ),
+}))
+</code></pre>
+<p>FileEditTool 的几个关键设计：</p>
+<p><strong>唯一性校验。</strong> 当 <code>replace_all</code> 为 <code>false</code> 时，<code>old_string</code> 必须在文件中唯一出现。如果有多个匹配，工具会报错要求提供更多上下文来消除歧义。</p>
+<p><strong>并发修改检测。</strong> 利用 <code>readFileState</code>（FileStateCache）跟踪文件的最后读取时间戳。如果文件在上次读取后被外部修改，编辑会被拒绝：</p>
+<pre><code class="language-typescript">// 常量定义
+export const FILE_UNEXPECTEDLY_MODIFIED_ERROR =
+  'File was unexpectedly modified since last read'
+</code></pre>
+<p><strong>文件大小上限。</strong> 设置了 1 GiB 的硬限制，防止处理超大文件导致 OOM：</p>
+<pre><code class="language-typescript">const MAX_EDIT_FILE_SIZE = 1024 * 1024 * 1024 // 1 GiB (stat bytes)
+</code></pre>
+<p><strong>权限检查。</strong> 通过 <code>checkWritePermissionForTool</code> 验证文件路径是否在允许写入的范围内：</p>
+<pre><code class="language-typescript">async checkPermissions(input, context) {
+  const appState = context.getAppState()
+  return checkWritePermissionForTool(
+    FileEditTool, input, appState.toolPermissionContext,
+  )
+},
+</code></pre>
+<p><strong>路径回填。</strong> <code>backfillObservableInput</code> 方法将相对路径或 <code>~</code> 开头的路径展开为绝对路径，确保 hook 的 allowlist 不会被绕过：</p>
+<pre><code class="language-typescript">backfillObservableInput(input) {
+  if (typeof input.file_path === 'string') {
+    input.file_path = expandPath(input.file_path)
+  }
+},
+</code></pre>
+<h3 id="823-filewritetool--全文件创建覆写"><a class="header" href="#823-filewritetool--全文件创建覆写">8.2.3 FileWriteTool —— 全文件创建/覆写</a></h3>
+<p>FileWriteTool 用于创建新文件或完全覆写已有文件，其 schema 更为简洁：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({
+  file_path: z.string().describe(
+    'The absolute path to the file to write (must be absolute, not relative)'
+  ),
+  content: z.string().describe('The content to write to the file'),
+}))
+</code></pre>
+<p>FileWriteTool 的输出 schema 包含丰富的变更信息，方便 UI 展示差异：</p>
+<pre><code class="language-typescript">const outputSchema = lazySchema(() =&gt; z.object({
+  type: z.enum(['create', 'update']),  // 创建还是更新
+  filePath: z.string(),
+  content: z.string(),
+  structuredPatch: z.array(hunkSchema()),  // diff patch
+  originalFile: z.string().optional(),      // 原文件内容（如有）
+}))
+</code></pre>
+<h3 id="824-三剑客的设计对比"><a class="header" href="#824-三剑客的设计对比">8.2.4 三剑客的设计对比</a></h3>
+<pre><code class="language-mermaid">graph LR
+    subgraph 文件操作工具
+        R[FileReadTool]
+        E[FileEditTool]
+        W[FileWriteTool]
+    end
+
+    R --&gt;|"maxResultSizeChars: Infinity&lt;br/&gt;isConcurrencySafe: true&lt;br/&gt;isReadOnly: true"| RR[读取文件]
+    E --&gt;|"maxResultSizeChars: 100K&lt;br/&gt;isConcurrencySafe: false&lt;br/&gt;isReadOnly: false&lt;br/&gt;strict: true"| EE[精确替换]
+    W --&gt;|"maxResultSizeChars: 100K&lt;br/&gt;isConcurrencySafe: false&lt;br/&gt;isReadOnly: false"| WW[完全覆写]
+
+    RR --&gt;|支持格式| F1[文本 / 图片 / PDF / Notebook]
+    EE --&gt;|保护机制| F2[唯一性校验 / 并发检测 / 大小限制]
+    WW --&gt;|输出信息| F3[类型 / diff patch / 原文件]
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>特性</th><th>FileReadTool</th><th>FileEditTool</th><th>FileWriteTool</th></tr>
+</thead>
+<tbody>
+<tr><td>并发安全</td><td>是</td><td>否</td><td>否</td></tr>
+<tr><td>只读</td><td>是</td><td>否</td><td>否</td></tr>
+<tr><td>maxResultSizeChars</td><td>Infinity</td><td>100,000</td><td>100,000</td></tr>
+<tr><td>strict 模式</td><td>否</td><td>是</td><td>否</td></tr>
+<tr><td>格式支持</td><td>文本/图片/PDF/Notebook</td><td>纯文本</td><td>纯文本</td></tr>
+<tr><td>权限检查</td><td>读取权限</td><td>写入权限</td><td>写入权限</td></tr>
+<tr><td>shouldDefer</td><td>否</td><td>否</td><td>否</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="83-globtoolgreptool--ripgrep-集成"><a class="header" href="#83-globtoolgreptool--ripgrep-集成">8.3 GlobTool/GrepTool —— Ripgrep 集成</a></h2>
+<h3 id="831-globtool--快速文件名搜索"><a class="header" href="#831-globtool--快速文件名搜索">8.3.1 GlobTool —— 快速文件名搜索</a></h3>
+<p>GlobTool 通过内部的 <code>glob</code> 工具函数执行文件名模式匹配。它的设计注重简洁：</p>
+<pre><code class="language-typescript">// src/tools/GlobTool/GlobTool.ts
+export const GlobTool = buildTool({
+  name: GLOB_TOOL_NAME,
+  searchHint: 'find files by name pattern or wildcard',
+  maxResultSizeChars: 100_000,
+  isConcurrencySafe() { return true },
+  isReadOnly() { return true },
+  isSearchOrReadCommand() { return { isSearch: true, isRead: false } },
+  // ...
+})
+</code></pre>
+<p>GlobTool 和 GrepTool 都是并发安全且只读的——它们可以与其他搜索工具并行执行。</p>
+<p>输入 schema 只有两个字段：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({
+  pattern: z.string().describe('The glob pattern to match files against'),
+  path: z.string().optional().describe('The directory to search in.'),
+}))
+</code></pre>
+<p>值得注意的是，当内部构建嵌入了搜索工具时，GlobTool 会被完全移除：</p>
+<pre><code class="language-typescript">// src/tools.ts
+...(hasEmbeddedSearchTools() ? [] : [GlobTool, GrepTool]),
+</code></pre>
+<h3 id="832-greptool--ripgrep-的深度集成"><a class="header" href="#832-greptool--ripgrep-的深度集成">8.3.2 GrepTool —— Ripgrep 的深度集成</a></h3>
+<p>GrepTool 是 Claude Code 搜索能力的核心。它基于 Ripgrep（rg）实现，提供了远超 grep 的搜索体验。</p>
+<p><strong>丰富的输入参数。</strong> GrepTool 的 schema 几乎是 ripgrep 常用参数的一对一映射：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({
+  pattern: z.string(),      // 正则表达式模式
+  path: z.string().optional(),
+  glob: z.string().optional(),  // 文件过滤 glob
+  output_mode: z.enum(['content', 'files_with_matches', 'count']).optional(),
+  '-B': semanticNumber(z.number().optional()),  // 前文行数
+  '-A': semanticNumber(z.number().optional()),  // 后文行数
+  '-C': semanticNumber(z.number().optional()),  // 上下文行数
+  context: semanticNumber(z.number().optional()),
+  '-n': semanticBoolean(z.boolean().optional()),  // 行号
+  '-i': semanticBoolean(z.boolean().optional()),  // 忽略大小写
+  type: z.string().optional(),     // 文件类型过滤
+  head_limit: semanticNumber(z.number().optional()),  // 结果行数限制
+  offset: semanticNumber(z.number().optional()),       // 偏移量
+  multiline: semanticBoolean(z.boolean().optional()),  // 多行模式
+}))
+</code></pre>
+<p><strong>默认结果限制。</strong> 为防止上下文膨胀，GrepTool 默认只返回前 250 条结果：</p>
+<pre><code class="language-typescript">const DEFAULT_HEAD_LIMIT = 250
+</code></pre>
+<p>模型可以通过传 <code>head_limit: 0</code> 来获取无限结果，但这在源码注释中被标记为“谨慎使用“。</p>
+<p><strong>VCS 目录自动排除。</strong> 搜索时自动排除版本控制目录：</p>
+<pre><code class="language-typescript">const VCS_DIRECTORIES_TO_EXCLUDE = ['.git', '.svn', '.hg', '.bzr', '.jj', '.sl']
+</code></pre>
+<p><strong>分页支持。</strong> 通过 <code>offset</code> 和 <code>head_limit</code> 的组合，GrepTool 支持结果分页：</p>
+<pre><code class="language-typescript">function applyHeadLimit&lt;T&gt;(items: T[], limit: number | undefined, offset: number = 0) {
+  if (limit === 0) return { items: items.slice(offset), appliedLimit: undefined }
+  const effectiveLimit = limit ?? DEFAULT_HEAD_LIMIT
+  const sliced = items.slice(offset, offset + effectiveLimit)
+  const wasTruncated = items.length - offset &gt; effectiveLimit
+  return { items: sliced, appliedLimit: wasTruncated ? effectiveLimit : undefined }
+}
+</code></pre>
+<p><strong>GrepTool 与 BashTool grep 的关系。</strong> 有趣的是，模型可以通过 BashTool 执行 <code>grep</code> 或 <code>rg</code> 命令，也可以使用 GrepTool。系统提示中明确引导模型使用 GrepTool 而非 BashTool 中的 grep。GrepTool 的优势在于：结构化的输出（文件名列表、匹配计数等）、内置的结果限制和分页、以及正确的权限检查。</p>
+<h3 id="833-搜索工具的设计模式"><a class="header" href="#833-搜索工具的设计模式">8.3.3 搜索工具的设计模式</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Model as 模型
+    participant Grep as GrepTool
+    participant RG as Ripgrep (rg)
+    participant FS as 文件系统
+
+    Model-&gt;&gt;Grep: { pattern: "TODO", path: "src/", type: "ts" }
+    Grep-&gt;&gt;Grep: validateInput（路径存在性检查）
+    Grep-&gt;&gt;Grep: checkPermissions（读取权限）
+    Grep-&gt;&gt;RG: 构建 rg 命令参数
+    Note right of Grep: --type ts --glob&lt;br/&gt;排除 .git 等目录
+    RG-&gt;&gt;FS: 遍历文件系统
+    FS--&gt;&gt;RG: 匹配结果
+    RG--&gt;&gt;Grep: 原始输出
+    Grep-&gt;&gt;Grep: applyHeadLimit(results, 250, 0)
+    Grep--&gt;&gt;Model: { numFiles: 12, filenames: [...], content: "..." }
+</code></pre>
+<h2 id="84-webfetchtool--websearchtool--网络工具"><a class="header" href="#84-webfetchtool--websearchtool--网络工具">8.4 WebFetchTool / WebSearchTool —— 网络工具</a></h2>
+<h3 id="841-webfetchtool--url-内容抓取"><a class="header" href="#841-webfetchtool--url-内容抓取">8.4.1 WebFetchTool —— URL 内容抓取</a></h3>
+<p>WebFetchTool 从指定 URL 抓取内容，将 HTML 转为 Markdown，然后用一个小模型对内容进行总结：</p>
+<pre><code class="language-typescript">export const WebFetchTool = buildTool({
+  name: WEB_FETCH_TOOL_NAME,
+  searchHint: 'fetch and extract content from a URL',
+  maxResultSizeChars: 100_000,
+  shouldDefer: true,           // 延迟加载
+  isConcurrencySafe() { return true },
+  isReadOnly() { return true },
+  // ...
+})
+</code></pre>
+<p>WebFetchTool 被标记为 <code>shouldDefer: true</code>——它不是核心的编码工具，大多数对话不需要它，所以延迟加载以节省 prompt 空间。</p>
+<p><strong>输入 schema。</strong> 只有两个必填字段：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({
+  url: z.string().url().describe('The URL to fetch content from'),
+  prompt: z.string().describe('The prompt to run on the fetched content'),
+}))
+</code></pre>
+<p><code>prompt</code> 字段是一个巧妙设计——模型不是简单地抓取网页然后塞入上下文，而是告诉 WebFetchTool “要从页面提取什么信息”。内部使用一个较小的模型处理大量网页内容并提取相关部分，避免了将整个页面内容放入主对话的上下文窗口。</p>
+<p><strong>权限模型。</strong> WebFetchTool 的权限基于域名而非完整 URL：</p>
+<pre><code class="language-typescript">function webFetchToolInputToPermissionRuleContent(input: { [k: string]: unknown }): string {
+  try {
+    const { url } = parsedInput.data
+    const hostname = new URL(url).hostname
+    return `domain:${hostname}`
+  } catch {
+    return `input:${input.toString()}`
+  }
+}
+</code></pre>
+<p>这意味着用户可以授权 “允许访问 github.com” 而不需要逐一授权每个 URL。</p>
+<p><strong>预批准主机。</strong> 某些安全的主机（如文档网站）被预先批准，无需用户确认：</p>
+<pre><code class="language-typescript">// 通过 isPreapprovedHost 和 isPreapprovedUrl 函数检查
+</code></pre>
+<h3 id="842-websearchtool--基于-api-的网络搜索"><a class="header" href="#842-websearchtool--基于-api-的网络搜索">8.4.2 WebSearchTool —— 基于 API 的网络搜索</a></h3>
+<p>WebSearchTool 的实现方式与其他工具截然不同——它不是在本地执行搜索，而是利用 Anthropic API 的内置 web_search 工具：</p>
+<pre><code class="language-typescript">function makeToolSchema(input: Input): BetaWebSearchTool20250305 {
+  return {
+    type: 'web_search_20250305',
+    name: 'web_search',
+    allowed_domains: input.allowed_domains,
+    blocked_domains: input.blocked_domains,
+    max_uses: 8,  // 硬编码最多 8 次搜索
+  }
+}
+</code></pre>
+<p>WebSearchTool 实际上是一个 “工具中的工具”——它通过 <code>queryModelWithStreaming</code> 发起一次新的 API 调用，在该调用中配置了 <code>web_search</code> 工具。API 侧的模型执行搜索，然后 Claude Code 将搜索结果格式化返回给主对话。</p>
+<pre><code class="language-typescript">const outputSchema = lazySchema(() =&gt; z.object({
+  query: z.string(),
+  results: z.array(z.union([searchResultSchema(), z.string()])),
+  durationSeconds: z.number(),
+}))
+</code></pre>
+<p>结果是 <code>SearchResult | string</code> 的混合数组——搜索结果和模型生成的文本评论交替出现。</p>
+<h3 id="843-网络工具对比"><a class="header" href="#843-网络工具对比">8.4.3 网络工具对比</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>特性</th><th>WebFetchTool</th><th>WebSearchTool</th></tr>
+</thead>
+<tbody>
+<tr><td>功能</td><td>抓取单个 URL 内容</td><td>网络搜索</td></tr>
+<tr><td>实现方式</td><td>直接 HTTP 请求</td><td>嵌套 API 调用</td></tr>
+<tr><td>内容处理</td><td>HTML -&gt; Markdown -&gt; 小模型总结</td><td>API 侧 web_search 工具</td></tr>
+<tr><td>权限粒度</td><td>域名级别</td><td>通用（域名过滤在参数中）</td></tr>
+<tr><td>shouldDefer</td><td>是</td><td>否</td></tr>
+<tr><td>max_uses</td><td>N/A</td><td>8 次搜索/调用</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="85-tasktools--任务管理系统"><a class="header" href="#85-tasktools--任务管理系统">8.5 TaskTools —— 任务管理系统</a></h2>
+<h3 id="851-设计背景"><a class="header" href="#851-设计背景">8.5.1 设计背景</a></h3>
+<p>Task 工具族（TaskCreate、TaskGet、TaskUpdate、TaskList）是 Claude Code 的任务管理系统 v2（TodoV2），用于替代旧的 TodoWriteTool。它们在 <code>isTodoV2Enabled()</code> 为 true 时才可用。</p>
+<h3 id="852-taskcreatetool"><a class="header" href="#852-taskcreatetool">8.5.2 TaskCreateTool</a></h3>
+<pre><code class="language-typescript">// src/tools/TaskCreateTool/TaskCreateTool.ts
+export const TaskCreateTool = buildTool({
+  name: TASK_CREATE_TOOL_NAME,
+  searchHint: 'create a task in the task list',
+  maxResultSizeChars: 100_000,
+  shouldDefer: true,
+  isEnabled() { return isTodoV2Enabled() },
+  isConcurrencySafe() { return true },
+  // ...
+  async call({ subject, description, activeForm, metadata }, context) {
+    const taskListId = await getTaskListId(context)
+    const task = await createTask(taskListId, {
+      subject,
+      description,
+      activeForm,
+      metadata,
+      agentName: getAgentName(context),
+      teamName: getTeamName(context),
+    })
+    // 执行 task-created hooks
+    await executeTaskCreatedHooks(/* ... */)
+    return { data: { task: { id: task.id, subject: task.subject } } }
+  }
+})
+</code></pre>
+<p>TaskCreateTool 的输入 schema：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({
+  subject: z.string().describe('A brief title for the task'),
+  description: z.string().describe('What needs to be done'),
+  activeForm: z.string().optional().describe(
+    'Present continuous form shown in spinner when in_progress (e.g., "Running tests")'
+  ),
+  metadata: z.record(z.string(), z.unknown()).optional().describe(
+    'Arbitrary metadata to attach to the task'
+  ),
+}))
+</code></pre>
+<p><strong><code>activeForm</code> 字段</strong> 是一个 UX 优化——当任务处于进行中状态时，spinner 会显示这个描述（如 “Running tests”），而非通用的 “Working…”。</p>
+<h3 id="853-task-工具族的设计模式"><a class="header" href="#853-task-工具族的设计模式">8.5.3 Task 工具族的设计模式</a></h3>
+<p>Task 工具族共享几个设计特征：</p>
+<ol>
+<li><strong>全部 <code>shouldDefer: true</code></strong> —— 任务管理不是每次对话都需要的</li>
+<li><strong>全部 <code>isConcurrencySafe: true</code></strong> —— 任务操作是独立的，可以并行</li>
+<li><strong>条件启用</strong> —— 通过 <code>isEnabled()</code> 检查功能标记</li>
+<li><strong>与 hooks 集成</strong> —— TaskCreate 执行后触发 task-created hooks</li>
+</ol>
+<pre><code class="language-mermaid">graph TD
+    subgraph Task 工具族
+        TC[TaskCreateTool&lt;br/&gt;创建任务]
+        TG[TaskGetTool&lt;br/&gt;获取任务详情]
+        TU[TaskUpdateTool&lt;br/&gt;更新任务状态]
+        TL[TaskListTool&lt;br/&gt;列出所有任务]
+    end
+
+    TC --&gt;|创建| DB[(任务存储)]
+    TG --&gt;|读取| DB
+    TU --&gt;|更新| DB
+    TL --&gt;|查询| DB
+
+    TC --&gt;|触发| H[task-created hooks]
+    TU --&gt;|触发| H2[task-updated hooks]
+
+    subgraph 任务生命周期
+        S1[created] --&gt; S2[in_progress]
+        S2 --&gt; S3[completed]
+        S2 --&gt; S4[failed]
+        S2 --&gt; S5[cancelled]
+    end
+</code></pre>
+<h3 id="854-共同的工具模式"><a class="header" href="#854-共同的工具模式">8.5.4 共同的工具模式</a></h3>
+<p>回顾本章分析的所有工具，可以提炼出几个共同的设计模式：</p>
+<p><strong>模式一：lazySchema。</strong> 所有工具都使用 <code>lazySchema</code> 延迟构建 Zod schema，避免模块加载时的开销：</p>
+<pre><code class="language-typescript">const inputSchema = lazySchema(() =&gt; z.strictObject({ /* ... */ }))
+</code></pre>
+<p><strong>模式二：buildTool 工厂。</strong> 每个工具都通过 <code>buildTool</code> 构建，享受失败关闭的默认值。</p>
+<p><strong>模式三：分离的 UI。</strong> 工具的业务逻辑和 UI 渲染分布在不同文件中（如 <code>GrepTool.ts</code> 和 <code>UI.tsx</code>），但通过 Tool 接口统一暴露。</p>
+<p><strong>模式四：权限委托。</strong> 文件工具委托给 <code>checkReadPermissionForTool</code> / <code>checkWritePermissionForTool</code>，BashTool 有独立的权限链，网络工具基于域名。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>本章深入分析了 Claude Code 最核心的内置工具：</p>
+<ol>
+<li><strong>BashTool</strong> 是最复杂的工具，18 个文件、多层安全防线、命令语义分类、推测性分类器等设计使其在提供强大 shell 能力的同时保持安全</li>
+<li><strong>FileRead/Edit/Write</strong> 三剑客各司其职，Read 以 Infinity 的 maxResultSizeChars 避免循环读取，Edit 通过精确替换最小化修改，Write 提供完整的 diff 信息</li>
+<li><strong>Glob/Grep</strong> 工具与 Ripgrep 深度集成，提供结构化输出、分页、结果限制等高级功能</li>
+<li><strong>WebFetch/WebSearch</strong> 分别通过 HTTP 抓取和嵌套 API 调用提供网络能力</li>
+<li><strong>Task 工具族</strong> 展示了条件启用、延迟加载、hooks 集成等模式</li>
+</ol>
+<p>下一章将分析这些工具如何在 StreamingToolExecutor 中被调度执行，以及工具结果如何被截断和持久化。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part3-tool-system/ch07-tool-architecture.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part3-tool-system/ch09-tool-execution.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part3-tool-system/ch07-tool-architecture.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part3-tool-system/ch09-tool-execution.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

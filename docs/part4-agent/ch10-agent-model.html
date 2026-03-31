@@ -1,0 +1,808 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 10 章：Agent 模型 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part4-agent/ch10-agent-model.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-10-章agent-模型"><a class="header" href="#第-10-章agent-模型">第 10 章：Agent 模型</a></h1>
+<blockquote>
+<p>“任何足够复杂的 AI 系统都包含一个临时的、非正式指定的、充满 Bug 的、只实现了一半的 Agent 框架。”
+—— 改编自 Greenspun 第十定律</p>
+</blockquote>
+<p>Claude Code 的 Agent 系统是整个架构中最具创新性的部分之一。它将“如何定义一个自治代理“这一抽象问题，转化为一个具体的工程实现：通过 Markdown frontmatter 声明式地定义 Agent 的元数据，通过 TypeScript 运行时对象驱动其执行。本章将深入分析这一模型的设计与实现。</p>
+<h2 id="101-agent-的定义--从-markdown-frontmatter-到运行时对象"><a class="header" href="#101-agent-的定义--从-markdown-frontmatter-到运行时对象">10.1 Agent 的定义 —— 从 Markdown Frontmatter 到运行时对象</a></h2>
+<h3 id="1011-三源合一的类型体系"><a class="header" href="#1011-三源合一的类型体系">10.1.1 三源合一的类型体系</a></h3>
+<p>Claude Code 的 Agent 系统采用了一种优雅的类型层次结构。所有 Agent 共享一个基础类型 <code>BaseAgentDefinition</code>，然后通过联合类型（Union Type）分化为三种具体形态：</p>
+<pre><code class="language-typescript">// src/tools/AgentTool/loadAgentsDir.ts
+
+export type BaseAgentDefinition = {
+  agentType: string              // Agent 的唯一标识
+  whenToUse: string              // 何时使用此 Agent 的描述
+  tools?: string[]               // 允许使用的工具列表
+  disallowedTools?: string[]     // 禁止使用的工具列表
+  skills?: string[]              // 需预加载的 Skill 名称
+  mcpServers?: AgentMcpServerSpec[]  // Agent 专属 MCP 服务器
+  hooks?: HooksSettings          // 会话级钩子
+  color?: AgentColorName         // UI 显示颜色
+  model?: string                 // 模型选择
+  effort?: EffortValue           // 推理努力级别
+  permissionMode?: PermissionMode // 权限模式
+  maxTurns?: number              // 最大交互轮次
+  background?: boolean           // 是否作为后台任务运行
+  memory?: AgentMemoryScope      // 持久化记忆范围
+  isolation?: 'worktree' | 'remote' // 隔离模式
+  omitClaudeMd?: boolean         // 是否省略 CLAUDE.md
+  // ...更多字段
+}
+
+// 内置 Agent：动态系统提示词
+export type BuiltInAgentDefinition = BaseAgentDefinition &amp; {
+  source: 'built-in'
+  getSystemPrompt: (params: {
+    toolUseContext: Pick&lt;ToolUseContext, 'options'&gt;
+  }) =&gt; string
+}
+
+// 自定义 Agent：Markdown 文件定义
+export type CustomAgentDefinition = BaseAgentDefinition &amp; {
+  getSystemPrompt: () =&gt; string
+  source: SettingSource   // 'userSettings' | 'projectSettings' | 'policySettings'
+}
+
+// 插件 Agent：插件提供
+export type PluginAgentDefinition = BaseAgentDefinition &amp; {
+  getSystemPrompt: () =&gt; string
+  source: 'plugin'
+  plugin: string
+}
+
+// 最终的联合类型
+export type AgentDefinition =
+  | BuiltInAgentDefinition
+  | CustomAgentDefinition
+  | PluginAgentDefinition
+</code></pre>
+<p>这个设计有几个值得注意的要点：</p>
+<p><strong>第一，getSystemPrompt 是方法而非属性。</strong> 内置 Agent 的 <code>getSystemPrompt</code> 接收 <code>toolUseContext</code> 参数，可以根据运行时环境动态生成系统提示词——例如 Claude Code Guide Agent 会根据当前配置的 MCP 服务器和自定义 Skill 来生成不同的提示词。自定义 Agent 的 <code>getSystemPrompt</code> 则是一个闭包，在加载时捕获 Markdown 内容和记忆配置。</p>
+<p><strong>第二，source 字段实现了优先级覆盖。</strong> <code>getActiveAgentsFromList</code> 函数按照 built-in → plugin → user → project → flag → managed 的顺序遍历所有 Agent，后加载的同名 Agent 会覆盖先加载的。这意味着项目级配置可以覆盖用户级配置，而组织策略可以覆盖一切：</p>
+<pre><code class="language-typescript">export function getActiveAgentsFromList(
+  allAgents: AgentDefinition[],
+): AgentDefinition[] {
+  const agentGroups = [
+    builtInAgents, pluginAgents, userAgents,
+    projectAgents, flagAgents, managedAgents,
+  ]
+  const agentMap = new Map&lt;string, AgentDefinition&gt;()
+  for (const agents of agentGroups) {
+    for (const agent of agents) {
+      agentMap.set(agent.agentType, agent) // 后者覆盖前者
+    }
+  }
+  return Array.from(agentMap.values())
+}
+</code></pre>
+<h3 id="1012-markdown-解析流水线"><a class="header" href="#1012-markdown-解析流水线">10.1.2 Markdown 解析流水线</a></h3>
+<p>自定义 Agent 的定义存储在 Markdown 文件中，使用 YAML frontmatter 声明元数据。解析流程如下：</p>
+<pre><code class="language-mermaid">flowchart TD
+    A[".claude/agents/*.md 文件"] --&gt; B["loadMarkdownFilesForSubdir('agents', cwd)"]
+    B --&gt; C["提取 YAML Frontmatter"]
+    C --&gt; D{frontmatter.name 存在?}
+    D -- 否 --&gt; E["静默跳过&lt;br/&gt;(可能是参考文档)"]
+    D -- 是 --&gt; F["parseAgentFromMarkdown()"]
+    F --&gt; G["验证必填字段&lt;br/&gt;name, description"]
+    G --&gt; H["解析可选字段&lt;br/&gt;model, effort, tools, memory..."]
+    H --&gt; I["构建 CustomAgentDefinition"]
+    I --&gt; J["getSystemPrompt 闭包&lt;br/&gt;捕获 Markdown content"]
+</code></pre>
+<p><code>parseAgentFromMarkdown</code> 函数的核心逻辑展现了一种“宽进严出“的解析哲学——遇到无效值时记录日志但不中断，缺失可选字段时使用默认值：</p>
+<pre><code class="language-typescript">export function parseAgentFromMarkdown(
+  filePath: string,
+  baseDir: string,
+  frontmatter: Record&lt;string, unknown&gt;,
+  content: string,
+  source: SettingSource,
+): CustomAgentDefinition | null {
+  const agentType = frontmatter['name']
+  let whenToUse = frontmatter['description'] as string
+
+  // 必填字段验证
+  if (!agentType || typeof agentType !== 'string') return null
+  if (!whenToUse || typeof whenToUse !== 'string') return null
+
+  // 解析模型配置——支持 'inherit' 特殊值
+  const modelRaw = frontmatter['model']
+  let model: string | undefined
+  if (typeof modelRaw === 'string' &amp;&amp; modelRaw.trim().length &gt; 0) {
+    const trimmed = modelRaw.trim()
+    model = trimmed.toLowerCase() === 'inherit' ? 'inherit' : trimmed
+  }
+
+  // 内存启用时自动注入文件读写工具
+  let tools = parseAgentToolsFromFrontmatter(frontmatter['tools'])
+  if (isAutoMemoryEnabled() &amp;&amp; memory &amp;&amp; tools !== undefined) {
+    const toolSet = new Set(tools)
+    for (const tool of [FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, FILE_READ_TOOL_NAME]) {
+      if (!toolSet.has(tool)) tools = [...tools, tool]
+    }
+  }
+
+  // 系统提示词作为闭包：捕获 content 和 memory 配置
+  const systemPrompt = content.trim()
+  const agentDef: CustomAgentDefinition = {
+    // ...
+    getSystemPrompt: () =&gt; {
+      if (isAutoMemoryEnabled() &amp;&amp; memory) {
+        return systemPrompt + '\n\n' + loadAgentMemoryPrompt(agentType, memory)
+      }
+      return systemPrompt
+    },
+    source,
+    // ...所有解析出的可选字段
+  }
+  return agentDef
+}
+</code></pre>
+<p>注意此处一个精巧的设计：当 Agent 启用了记忆功能时，系统提示词不是在解析阶段静态拼接的，而是通过闭包在每次调用 <code>getSystemPrompt()</code> 时动态加载最新的记忆内容。这确保了 Agent 每次运行时都能看到最新的持久化记忆。</p>
+<h3 id="1013-json-格式解析"><a class="header" href="#1013-json-格式解析">10.1.3 JSON 格式解析</a></h3>
+<p>除了 Markdown 格式，系统还支持 JSON 格式的 Agent 定义，主要用于 Feature Flag 远程下发。JSON 解析通过 Zod schema 进行严格验证：</p>
+<pre><code class="language-typescript">const AgentJsonSchema = lazySchema(() =&gt;
+  z.object({
+    description: z.string().min(1, 'Description cannot be empty'),
+    tools: z.array(z.string()).optional(),
+    disallowedTools: z.array(z.string()).optional(),
+    prompt: z.string().min(1, 'Prompt cannot be empty'),
+    model: z.string().trim().min(1).transform(
+      m =&gt; (m.toLowerCase() === 'inherit' ? 'inherit' : m)
+    ).optional(),
+    effort: z.union([z.enum(EFFORT_LEVELS), z.number().int()]).optional(),
+    permissionMode: z.enum(PERMISSION_MODES).optional(),
+    mcpServers: z.array(AgentMcpServerSpecSchema()).optional(),
+    hooks: HooksSchema().optional(),
+    maxTurns: z.number().int().positive().optional(),
+    // ...
+  }),
+)
+</code></pre>
+<p><code>lazySchema</code> 包装器是一个值得注意的优化——它延迟 Zod schema 的构造，避免模块加载时的循环依赖问题（HooksSchema 依赖的类型链路会形成环）。</p>
+<h2 id="102-内置-agent--五个专业化子系统"><a class="header" href="#102-内置-agent--五个专业化子系统">10.2 内置 Agent —— 五个专业化子系统</a></h2>
+<p>Claude Code 内置了若干 Agent，每个都针对特定场景进行了精心设计。通过 <code>getBuiltInAgents()</code> 函数可以看到它们的注册逻辑：</p>
+<pre><code class="language-typescript">// src/tools/AgentTool/builtInAgents.ts
+
+export function getBuiltInAgents(): AgentDefinition[] {
+  if (isEnvTruthy(process.env.CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS)
+      &amp;&amp; getIsNonInteractiveSession()) {
+    return []  // SDK 用户可以禁用所有内置 Agent
+  }
+
+  const agents: AgentDefinition[] = [
+    GENERAL_PURPOSE_AGENT,   // 始终可用
+    STATUSLINE_SETUP_AGENT,  // 始终可用
+  ]
+
+  if (areExplorePlanAgentsEnabled()) {
+    agents.push(EXPLORE_AGENT, PLAN_AGENT)  // A/B 测试控制
+  }
+
+  if (isNonSdkEntrypoint) {
+    agents.push(CLAUDE_CODE_GUIDE_AGENT)    // 非 SDK 入口才有
+  }
+
+  if (feature('VERIFICATION_AGENT') &amp;&amp; growthbook flag) {
+    agents.push(VERIFICATION_AGENT)          // Feature flag 控制
+  }
+
+  return agents
+}
+</code></pre>
+<pre><code class="language-mermaid">graph LR
+    subgraph "内置 Agent 体系"
+        GP["GeneralPurpose&lt;br/&gt;通用 Agent&lt;br/&gt;tools: ['*']&lt;br/&gt;model: 默认子代模型"]
+        EX["Explore&lt;br/&gt;代码搜索专家&lt;br/&gt;只读工具集&lt;br/&gt;model: haiku/inherit"]
+        PL["Plan&lt;br/&gt;架构规划师&lt;br/&gt;只读 + 无嵌套 Agent&lt;br/&gt;model: inherit"]
+        GD["Guide&lt;br/&gt;使用指南&lt;br/&gt;WebFetch + Search&lt;br/&gt;model: haiku"]
+        VF["Verification&lt;br/&gt;验证专家&lt;br/&gt;只读 + 后台运行&lt;br/&gt;model: inherit"]
+    end
+
+    GP -.- |"无限制"| TOOLS1["所有工具"]
+    EX -.- |"只读"| TOOLS2["Glob/Grep/Read/Bash"]
+    PL -.- |"只读"| TOOLS3["同 Explore + 无 Agent"]
+    GD -.- |"查询"| TOOLS4["Read/WebFetch/WebSearch"]
+    VF -.- |"验证"| TOOLS5["Bash/Read + 后台"]
+</code></pre>
+<h3 id="1021-generalpurpose-agent--万能工兵"><a class="header" href="#1021-generalpurpose-agent--万能工兵">10.2.1 GeneralPurpose Agent —— 万能工兵</a></h3>
+<p>GeneralPurpose Agent 是最基础的 Agent 类型，也是默认选择。它的定义极为简洁：</p>
+<pre><code class="language-typescript">// src/tools/AgentTool/built-in/generalPurposeAgent.ts
+
+export const GENERAL_PURPOSE_AGENT: BuiltInAgentDefinition = {
+  agentType: 'general-purpose',
+  whenToUse: 'General-purpose agent for researching complex questions, '
+    + 'searching for code, and executing multi-step tasks...',
+  tools: ['*'],           // 可使用所有工具
+  source: 'built-in',
+  baseDir: 'built-in',
+  // model 故意省略——使用 getDefaultSubagentModel()
+  getSystemPrompt: getGeneralPurposeSystemPrompt,
+}
+</code></pre>
+<p><code>tools: ['*']</code> 的通配符意味着该 Agent 继承父级所有可用工具（经过安全过滤后）。model 字段的刻意省略使其使用系统默认的子代模型，而非继承父级的模型——这是一个关键的成本优化决策。</p>
+<h3 id="1022-explore-agent--快速代码探索"><a class="header" href="#1022-explore-agent--快速代码探索">10.2.2 Explore Agent —— 快速代码探索</a></h3>
+<p>Explore Agent 是一个专门优化过的只读搜索代理。其系统提示词中有一段关键指令：</p>
+<pre><code>NOTE: You are meant to be a fast agent that returns output as quickly as possible.
+In order to achieve this you must:
+- Make efficient use of the tools that you have at your disposal
+- Wherever possible you should try to spawn multiple parallel tool calls
+</code></pre>
+<p>它通过 <code>disallowedTools</code> 显式禁止了写入类操作和递归 Agent 调用：</p>
+<pre><code class="language-typescript">export const EXPLORE_AGENT: BuiltInAgentDefinition = {
+  agentType: 'Explore',
+  disallowedTools: [
+    AGENT_TOOL_NAME,           // 禁止嵌套 Agent
+    EXIT_PLAN_MODE_TOOL_NAME,
+    FILE_EDIT_TOOL_NAME,       // 禁止编辑
+    FILE_WRITE_TOOL_NAME,      // 禁止写入
+    NOTEBOOK_EDIT_TOOL_NAME,
+  ],
+  model: process.env.USER_TYPE === 'ant' ? 'inherit' : 'haiku',
+  omitClaudeMd: true,  // 关键优化：不注入 CLAUDE.md
+  // ...
+}
+</code></pre>
+<p><code>omitClaudeMd: true</code> 是一个重要的 token 节省优化。源码注释中记录了其原因：</p>
+<blockquote>
+<p>Dropping claudeMd here saves ~5-15 Gtok/week across 34M+ Explore spawns.</p>
+</blockquote>
+<p>也就是说，Explore Agent 每周被调用超过 3400 万次。每次省略 CLAUDE.md 可以节省数十亿 token，这是一个通过数据驱动做出的工程决策。</p>
+<h3 id="1023-plan-agent--软件架构师"><a class="header" href="#1023-plan-agent--软件架构师">10.2.3 Plan Agent —— 软件架构师</a></h3>
+<p>Plan Agent 继承了 Explore Agent 的工具集，同时添加了规划专用的系统提示词：</p>
+<pre><code class="language-typescript">export const PLAN_AGENT: BuiltInAgentDefinition = {
+  agentType: 'Plan',
+  disallowedTools: [
+    AGENT_TOOL_NAME, EXIT_PLAN_MODE_TOOL_NAME,
+    FILE_EDIT_TOOL_NAME, FILE_WRITE_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME,
+  ],
+  tools: EXPLORE_AGENT.tools,   // 复用 Explore 的工具集
+  model: 'inherit',              // 继承父级模型（需要强推理能力）
+  omitClaudeMd: true,
+  getSystemPrompt: () =&gt; getPlanV2SystemPrompt(),
+}
+</code></pre>
+<p>Plan Agent 使用 <code>model: 'inherit'</code> 而非 Explore 的 haiku，因为规划任务需要更强的推理能力。其系统提示词要求输出结构化的实施方案，包含“Critical Files for Implementation“这样的固定格式。</p>
+<h3 id="1024-claude-code-guide-agent--动态知识助手"><a class="header" href="#1024-claude-code-guide-agent--动态知识助手">10.2.4 Claude Code Guide Agent —— 动态知识助手</a></h3>
+<p>Guide Agent 是内置 Agent 中最特殊的一个——它的 <code>getSystemPrompt</code> 方法接收 <code>toolUseContext</code> 参数，在运行时动态构建提示词：</p>
+<pre><code class="language-typescript">export const CLAUDE_CODE_GUIDE_AGENT: BuiltInAgentDefinition = {
+  agentType: 'claude-code-guide',
+  tools: [GLOB_TOOL_NAME, GREP_TOOL_NAME, FILE_READ_TOOL_NAME,
+          WEB_FETCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME],
+  model: 'haiku',
+  permissionMode: 'dontAsk',  // 不需要用户确认权限
+  getSystemPrompt({ toolUseContext }) {
+    // 动态注入当前配置的 Skill、Agent、MCP 服务器信息
+    const customCommands = commands.filter(cmd =&gt; cmd.type === 'prompt')
+    const customAgents = toolUseContext.options.agentDefinitions
+      .activeAgents.filter(a =&gt; a.source !== 'built-in')
+    const mcpClients = toolUseContext.options.mcpClients
+    // ...拼接为上下文信息
+  },
+}
+</code></pre>
+<p>这种动态提示词生成使得 Guide Agent 能够感知用户的个性化配置，提供真正针对性的帮助。</p>
+<h3 id="1025-verification-agent--对抗性验证者"><a class="header" href="#1025-verification-agent--对抗性验证者">10.2.5 Verification Agent —— 对抗性验证者</a></h3>
+<p>Verification Agent 的设计哲学与其他 Agent 截然不同——它的核心使命是<strong>试图打破</strong>实现，而非确认其正确性。其系统提示词长达数百行，包含详细的验证策略矩阵：</p>
+<pre><code class="language-typescript">export const VERIFICATION_AGENT: BuiltInAgentDefinition = {
+  agentType: 'verification',
+  color: 'red',          // 红色标识——强调其对抗性质
+  background: true,       // 始终在后台运行
+  model: 'inherit',       // 需要强推理能力
+  getSystemPrompt: () =&gt; VERIFICATION_SYSTEM_PROMPT,
+  criticalSystemReminder_EXPERIMENTAL:
+    'CRITICAL: This is a VERIFICATION-ONLY task. You CANNOT edit files...',
+}
+</code></pre>
+<p><code>criticalSystemReminder_EXPERIMENTAL</code> 是一个实验性字段，会在每个用户轮次重新注入，防止模型在长对话中“遗忘“其只读约束。<code>background: true</code> 确保验证不会阻塞主线程的交互。</p>
+<p>Verification Agent 的系统提示词包含了自我反省机制，这在 AI Agent 设计中是罕见的：</p>
+<pre><code>=== RECOGNIZE YOUR OWN RATIONALIZATIONS ===
+You will feel the urge to skip checks. These are the exact excuses you reach for:
+- "The code looks correct based on my reading" — reading is not verification. Run it.
+- "The implementer's tests already pass" — the implementer is an LLM. Verify independently.
+- "This is probably fine" — probably is not verified. Run it.
+</code></pre>
+<h2 id="103-自定义-agent--claudeagents-目录结构"><a class="header" href="#103-自定义-agent--claudeagents-目录结构">10.3 自定义 Agent —— .claude/agents/ 目录结构</a></h2>
+<h3 id="1031-文件组织"><a class="header" href="#1031-文件组织">10.3.1 文件组织</a></h3>
+<p>自定义 Agent 存储在多层配置目录中，通过 <code>loadMarkdownFilesForSubdir('agents', cwd)</code> 统一加载：</p>
+<pre><code>~/.claude/agents/            # 用户级 Agent（所有项目可用）
+  my-reviewer.md
+  code-helper.md
+
+&lt;project&gt;/.claude/agents/    # 项目级 Agent（仅当前项目可用）
+  deploy-checker.md
+  test-runner.md
+
+&lt;managed&gt;/.claude/agents/    # 组织策略 Agent（管理员配置）
+  security-auditor.md
+</code></pre>
+<h3 id="1032-markdown-格式规范"><a class="header" href="#1032-markdown-格式规范">10.3.2 Markdown 格式规范</a></h3>
+<p>一个完整的自定义 Agent 定义文件如下：</p>
+<pre><code class="language-markdown">---
+name: code-reviewer
+description: "审查代码变更并提供改进建议。当用户要求 review 代码或检查 PR 时使用。"
+model: inherit
+tools:
+  - Glob
+  - Grep
+  - Read
+  - Bash
+disallowedTools:
+  - Write
+  - Edit
+color: blue
+effort: high
+permissionMode: dontAsk
+maxTurns: 50
+memory: project
+background: false
+isolation: worktree
+skills:
+  - simplify
+mcpServers:
+  - github
+  - name: custom-lint-server
+    command: node
+    args: ["/path/to/lint-server.js"]
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "echo 'Agent running Bash command'"
+---
+
+你是一个代码审查专家。你的职责是：
+
+1. 仔细阅读提交的代码变更
+2. 检查潜在的 Bug、安全隐患和性能问题
+3. 评估代码风格与项目约定的一致性
+4. 提出具体、可操作的改进建议
+
+审查时遵循以下原则：
+- 不要纠结于格式问题，关注逻辑正确性
+- 提供修复建议时要包含代码示例
+- 如果某个问题不确定，明确标注为"建议"而非"必须修复"
+</code></pre>
+<h3 id="1033-mcp-服务器规格"><a class="header" href="#1033-mcp-服务器规格">10.3.3 MCP 服务器规格</a></h3>
+<p>Agent 可以声明自己的 MCP 服务器依赖，支持两种形式：</p>
+<pre><code class="language-typescript">export type AgentMcpServerSpec =
+  | string                              // 引用已有服务器名称
+  | { [name: string]: McpServerConfig } // 内联定义新服务器
+
+const AgentMcpServerSpecSchema = lazySchema(() =&gt;
+  z.union([
+    z.string(),
+    z.record(z.string(), McpServerConfigSchema()),
+  ]),
+)
+</code></pre>
+<p>在 <code>runAgent</code> 的 <code>initializeAgentMcpServers</code> 函数中，引用型和内联型有不同的生命周期管理：引用型使用 memoized 的共享连接，内联型创建独立连接并在 Agent 结束时清理。</p>
+<h2 id="104-agent-的工具集--resolveagenttools-的筛选逻辑"><a class="header" href="#104-agent-的工具集--resolveagenttools-的筛选逻辑">10.4 Agent 的工具集 —— resolveAgentTools 的筛选逻辑</a></h2>
+<p>Agent 的工具集经过多层过滤，从全局工具池逐步收窄到 Agent 实际可用的工具子集。</p>
+<h3 id="1041-基础过滤层"><a class="header" href="#1041-基础过滤层">10.4.1 基础过滤层</a></h3>
+<p><code>filterToolsForAgent</code> 实现了第一层过滤，根据 Agent 的类型和运行模式裁剪工具：</p>
+<pre><code class="language-typescript">// src/tools/AgentTool/agentToolUtils.ts
+
+export function filterToolsForAgent({
+  tools, isBuiltIn, isAsync = false, permissionMode,
+}: { tools: Tools; isBuiltIn: boolean; isAsync?: boolean;
+     permissionMode?: PermissionMode }): Tools {
+  return tools.filter(tool =&gt; {
+    // MCP 工具始终放行
+    if (tool.name.startsWith('mcp__')) return true
+
+    // Plan 模式特殊放行 ExitPlanMode
+    if (toolMatchesName(tool, EXIT_PLAN_MODE_V2_TOOL_NAME)
+        &amp;&amp; permissionMode === 'plan') return true
+
+    // 全局禁止列表（如 TodoWrite、某些内部工具）
+    if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+
+    // 自定义 Agent 额外禁止列表
+    if (!isBuiltIn &amp;&amp; CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
+
+    // 异步 Agent 只能使用白名单工具
+    if (isAsync &amp;&amp; !ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) {
+      // 特例：进程内队友可以使用 Agent 工具（spawn 同步子代）
+      if (isAgentSwarmsEnabled() &amp;&amp; isInProcessTeammate()) {
+        if (toolMatchesName(tool, AGENT_TOOL_NAME)) return true
+        if (IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(tool.name)) return true
+      }
+      return false
+    }
+    return true
+  })
+}
+</code></pre>
+<p>这段代码揭示了几个安全设计原则：</p>
+<ol>
+<li><strong>MCP 工具总是可用</strong>——因为 MCP 工具已经通过独立的信任链验证</li>
+<li><strong>自定义 Agent 比内置 Agent 受到更严格限制</strong>——防止用户定义的 Agent 访问敏感内部工具</li>
+<li><strong>异步 Agent 使用白名单模式</strong>——默认拒绝，只允许经过审查的工具</li>
+</ol>
+<h3 id="1042-精细化解析层"><a class="header" href="#1042-精细化解析层">10.4.2 精细化解析层</a></h3>
+<p><code>resolveAgentTools</code> 在基础过滤之上，处理 Agent 定义中的 <code>tools</code> 和 <code>disallowedTools</code> 声明：</p>
+<pre><code class="language-typescript">export function resolveAgentTools(
+  agentDefinition: Pick&lt;AgentDefinition, 'tools' | 'disallowedTools' | ...&gt;,
+  availableTools: Tools,
+  isAsync = false,
+  isMainThread = false,
+): ResolvedAgentTools {
+  // 主线程跳过 filterToolsForAgent——工具池已由 useMergedTools() 正确组装
+  const filteredAvailableTools = isMainThread
+    ? availableTools
+    : filterToolsForAgent({ tools: availableTools, isBuiltIn, isAsync, permissionMode })
+
+  // 应用 disallowedTools 黑名单
+  const disallowedToolSet = new Set(disallowedTools?.map(/* ... */))
+  const allowedAvailableTools = filteredAvailableTools.filter(
+    tool =&gt; !disallowedToolSet.has(tool.name)
+  )
+
+  // 通配符展开：tools 为 undefined 或 ['*'] 时返回全部工具
+  const hasWildcard = agentTools === undefined
+    || (agentTools.length === 1 &amp;&amp; agentTools[0] === '*')
+  if (hasWildcard) {
+    return { hasWildcard: true, resolvedTools: allowedAvailableTools, ... }
+  }
+
+  // 逐个解析工具名称，收集有效/无效列表
+  for (const toolSpec of agentTools) {
+    const { toolName, ruleContent } = permissionRuleValueFromString(toolSpec)
+    // Agent 工具的特殊处理：提取 allowedAgentTypes
+    if (toolName === AGENT_TOOL_NAME &amp;&amp; ruleContent) {
+      allowedAgentTypes = ruleContent.split(',').map(s =&gt; s.trim())
+    }
+    const tool = availableToolMap.get(toolName)
+    if (tool) { validTools.push(toolSpec); resolved.push(tool) }
+    else { invalidTools.push(toolSpec) }
+  }
+
+  return { hasWildcard: false, validTools, invalidTools, resolvedTools: resolved,
+           allowedAgentTypes }
+}
+</code></pre>
+<pre><code class="language-mermaid">flowchart TD
+    A["全局工具池&lt;br/&gt;(所有已注册工具)"] --&gt; B["filterToolsForAgent"]
+    B --&gt; B1["移除 ALL_AGENT_DISALLOWED_TOOLS"]
+    B1 --&gt; B2{"是自定义 Agent?"}
+    B2 -- 是 --&gt; B3["移除 CUSTOM_AGENT_DISALLOWED_TOOLS"]
+    B2 -- 否 --&gt; B4["保留"]
+    B3 --&gt; B5{"是异步 Agent?"}
+    B4 --&gt; B5
+    B5 -- 是 --&gt; B6["只保留 ASYNC_AGENT_ALLOWED_TOOLS"]
+    B5 -- 否 --&gt; B7["全部保留"]
+    B6 --&gt; C["resolveAgentTools"]
+    B7 --&gt; C
+    C --&gt; C1["应用 disallowedTools 黑名单"]
+    C1 --&gt; C2{"tools 有通配符?"}
+    C2 -- 是 --&gt; D1["返回全部剩余工具"]
+    C2 -- 否 --&gt; C3["按名称匹配 tools 白名单"]
+    C3 --&gt; D2["返回匹配的工具子集"]
+</code></pre>
+<p>注意 <code>Agent(worker, researcher)</code> 这种语法——它允许通过工具规格字符串限制 Agent 可以调用的子代类型，实现了一种细粒度的递归控制。</p>
+<h2 id="105-agent-的-token-预算与模型选择"><a class="header" href="#105-agent-的-token-预算与模型选择">10.5 Agent 的 Token 预算与模型选择</a></h2>
+<h3 id="1051-模型解析策略"><a class="header" href="#1051-模型解析策略">10.5.1 模型解析策略</a></h3>
+<p>Agent 的模型选择是一个多层回退的过程，由 <code>getAgentModel</code> 函数实现：</p>
+<pre><code class="language-typescript">// src/utils/model/agent.ts (概念简化)
+
+export function getAgentModel(
+  agentModel: string | undefined,      // Agent 定义的 model 字段
+  mainLoopModel: string,               // 父级主循环模型
+  overrideModel: ModelAlias | undefined, // 调用时的覆盖
+  permissionMode: PermissionMode,
+): string {
+  // 1. 调用时覆盖 &gt; Agent 定义 &gt; 默认子代模型
+  // 2. 'inherit' 特殊值：使用父级模型
+  // 3. GrowthBook feature flag 可以覆盖特定 Agent 类型的模型
+}
+</code></pre>
+<p>不同 Agent 的模型策略体现了明确的成本-质量权衡：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Agent</th><th>model 配置</th><th>实际效果</th><th>设计考量</th></tr>
+</thead>
+<tbody>
+<tr><td>GeneralPurpose</td><td>省略</td><td>默认子代模型（较便宜）</td><td>通用任务不需要最强模型</td></tr>
+<tr><td>Explore</td><td><code>'haiku'</code> (外部) / <code>'inherit'</code> (内部)</td><td>最快最便宜 / A/B 测试</td><td>搜索场景追求速度</td></tr>
+<tr><td>Plan</td><td><code>'inherit'</code></td><td>与父级相同</td><td>规划需要强推理能力</td></tr>
+<tr><td>Guide</td><td><code>'haiku'</code></td><td>最便宜</td><td>文档查询不需要强模型</td></tr>
+<tr><td>Verification</td><td><code>'inherit'</code></td><td>与父级相同</td><td>验证需要理解复杂代码</td></tr>
+<tr><td>Fork</td><td><code>'inherit'</code></td><td>与父级相同</td><td>缓存共享要求模型一致</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="1052-token-预算控制"><a class="header" href="#1052-token-预算控制">10.5.2 Token 预算控制</a></h3>
+<p>Agent 的 token 使用受多个维度约束：</p>
+<ol>
+<li>
+<p><strong>maxTurns</strong>：限制 Agent 的最大交互轮次，防止无限循环。<code>FORK_AGENT</code> 的默认值是 200 轮，而自定义 Agent 可以通过 frontmatter 设置。</p>
+</li>
+<li>
+<p><strong>effort</strong>：影响模型的推理深度，支持字符串级别（<code>'low'</code>, <code>'medium'</code>, <code>'high'</code>）和整数值，通过 <code>parseEffortValue</code> 统一解析。</p>
+</li>
+<li>
+<p><strong>omitClaudeMd</strong>：对于只读 Agent（Explore、Plan），省略 CLAUDE.md 可以显著降低 token 消耗。源码注释量化了这一优化的效果——每周节省数十亿 token。</p>
+</li>
+<li>
+<p><strong>prompt cache sharing</strong>：Fork Agent 特别设计了 <code>useExactTools: true</code> 和 <code>model: 'inherit'</code>，确保子代的 API 请求前缀与父代字节完全一致，从而最大化 prompt cache 命中率。这是一个高度工程化的优化——FORK_AGENT 的注释中写道：</p>
+</li>
+</ol>
+<blockquote>
+<p>Reconstructing by re-calling getSystemPrompt() can diverge (GrowthBook cold-&gt;warm) and bust the prompt cache; threading the rendered bytes is byte-exact.</p>
+</blockquote>
+<h3 id="1053-agent-生命周期状态图"><a class="header" href="#1053-agent-生命周期状态图">10.5.3 Agent 生命周期状态图</a></h3>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Defined: 解析 Markdown/JSON
+    Defined --&gt; Registered: getAgentDefinitionsWithOverrides
+    Registered --&gt; Active: getActiveAgentsFromList&lt;br/&gt;(优先级覆盖后)
+    Active --&gt; ToolResolved: resolveAgentTools&lt;br/&gt;(工具集确定)
+    ToolResolved --&gt; Running: runAgent
+    Running --&gt; Running: query() 循环
+    Running --&gt; Completed: 正常结束
+    Running --&gt; Failed: 异常
+    Running --&gt; Killed: 用户终止
+    Completed --&gt; [*]
+    Failed --&gt; [*]
+    Killed --&gt; [*]
+
+    state Running {
+        [*] --&gt; Turn
+        Turn --&gt; ToolUse: 模型输出工具调用
+        ToolUse --&gt; ToolResult: 执行工具
+        ToolResult --&gt; Turn: 继续下一轮
+        Turn --&gt; FinalMessage: 模型输出最终响应
+    }
+</code></pre>
+<h2 id="106-本章小结"><a class="header" href="#106-本章小结">10.6 本章小结</a></h2>
+<p>Claude Code 的 Agent 模型展现了一种“配置即代码“的设计哲学。通过 Markdown frontmatter 声明式定义和 TypeScript 类型系统的严格约束，它在灵活性和安全性之间找到了精妙的平衡：</p>
+<ol>
+<li><strong>声明式定义</strong>：用户通过简单的 Markdown 文件即可创建功能完备的 Agent，降低了定制门槛。</li>
+<li><strong>类型安全</strong>：<code>AgentDefinition</code> 联合类型和 Zod schema 验证确保运行时不会出现非法配置。</li>
+<li><strong>多层工具过滤</strong>：从全局禁止列表到 Agent 级白名单/黑名单，形成了纵深防御。</li>
+<li><strong>数据驱动优化</strong>：<code>omitClaudeMd</code>、prompt cache sharing 等优化都基于真实的 fleet 数据——每周 3400 万次 Explore 调用。</li>
+<li><strong>可覆盖的优先级链</strong>：built-in → plugin → user → project → flag → managed 的覆盖链，使得组织策略能够安全地控制 Agent 行为。</li>
+</ol>
+<p>下一章我们将深入 Agent 的运行时——如何 fork 子代、如何恢复中断的会话、如何在多个 Agent 之间协调。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part3-tool-system/ch09-tool-execution.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part4-agent/ch11-subagent.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part3-tool-system/ch09-tool-execution.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part4-agent/ch11-subagent.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

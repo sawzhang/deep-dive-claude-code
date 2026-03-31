@@ -1,0 +1,624 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 20 章：REPL 实现 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part8-ui/ch20-repl.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-20-章repl-实现"><a class="header" href="#第-20-章repl-实现">第 20 章：REPL 实现</a></h1>
+<blockquote>
+<p>“REPL —— Read-Eval-Print Loop，一个看似简单的概念，在 Agent 系统中却演化为一个包含查询循环、权限协商、推测执行、多 Agent 路由的复杂有机体。”</p>
+</blockquote>
+<p><code>src/screens/REPL.tsx</code> 是 Claude Code 的主界面组件，5000+ 行代码使其成为整个代码库中最大的单个文件。它不仅仅是一个“输入-输出“界面，而是整个应用的中枢神经系统 —— 管理着消息流、工具调用、权限协商、会话恢复、多 Agent 协调等几乎所有核心功能。本章将解构这一巨型组件的内部结构。</p>
+<h2 id="201-repl-组件--5000-行主界面的结构"><a class="header" href="#201-repl-组件--5000-行主界面的结构">20.1 REPL 组件 —— 5000 行主界面的结构</a></h2>
+<h3 id="2011-导入分析"><a class="header" href="#2011-导入分析">20.1.1 导入分析</a></h3>
+<p>REPL 组件的导入列表本身就是一份架构文档。仅前 200 行就导入了超过 100 个模块：</p>
+<pre><code class="language-typescript">// src/screens/REPL.tsx
+import { c as _c } from "react/compiler-runtime";
+import { feature } from 'bun:bundle';
+
+// 状态管理
+import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
+
+// 核心查询引擎
+import { query } from '../query.js';
+
+// 消息处理
+import { handleMessageFromStream, createUserMessage, createAssistantMessage,
+         isCompactBoundaryMessage, getMessagesAfterCompactBoundary } from '../utils/messages.js';
+
+// 工具系统
+import { getTools, assembleToolPool } from '../tools.js';
+import useCanUseTool from '../hooks/useCanUseTool.js';
+
+// 权限系统
+import { applyPermissionUpdate, persistPermissionUpdate } from '../utils/permissions/PermissionUpdate.js';
+import { PermissionRequest } from '../components/permissions/PermissionRequest.js';
+
+// 会话管理
+import { deserializeMessages } from '../utils/conversationRecovery.js';
+import { partialCompactConversation } from '../services/compact/compact.js';
+
+// 多 Agent
+import { injectUserMessageToTeammate } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
+import { isLocalAgentTask, queuePendingMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js';
+</code></pre>
+<h3 id="2012-条件导入与死代码消除"><a class="header" href="#2012-条件导入与死代码消除">20.1.2 条件导入与死代码消除</a></h3>
+<p>REPL 大量使用 <code>feature()</code> 宏进行条件导入，确保内部特性不泄露到外部构建：</p>
+<pre><code class="language-typescript">// 语音集成 -- 仅 VOICE_MODE 特性开启时加载
+const useVoiceIntegration = feature('VOICE_MODE')
+  ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration
+  : () =&gt; ({ stripTrailing: () =&gt; 0, handleKeyEvent: () =&gt; {}, resetAnchor: () =&gt; {} });
+
+// 挫折检测 -- 仅内部(ant)构建
+const useFrustrationDetection = "external" === 'ant'
+  ? require('../components/FeedbackSurvey/useFrustrationDetection.js').useFrustrationDetection
+  : () =&gt; ({ state: 'closed', handleTranscriptSelect: () =&gt; {} });
+
+// 协调器模式
+const getCoordinatorUserContext = feature('COORDINATOR_MODE')
+  ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext
+  : () =&gt; ({});
+</code></pre>
+<p>这种模式的精妙之处在于：当 <code>feature('VOICE_MODE')</code> 在编译时为 <code>false</code> 时，整个 <code>require</code> 分支被消除，相关模块根本不会进入产品包。替代的空实现保持了类型兼容性，调用方无需任何条件判断。</p>
+<h3 id="2013-组件结构"><a class="header" href="#2013-组件结构">20.1.3 组件结构</a></h3>
+<p>REPL 的渲染输出可以分解为以下布局结构：</p>
+<pre><code class="language-mermaid">graph TD
+    REPL[REPL Component]
+    REPL --&gt; KBS[KeybindingSetup&lt;br/&gt;键绑定初始化]
+    REPL --&gt; GKH[GlobalKeybindingHandlers&lt;br/&gt;全局快捷键]
+    REPL --&gt; CKH[CommandKeybindingHandlers&lt;br/&gt;命令快捷键]
+    REPL --&gt; CRH[CancelRequestHandler&lt;br/&gt;取消请求处理]
+
+    REPL --&gt; Layout[主布局 Box]
+    Layout --&gt; Header[状态栏区域]
+    Layout --&gt; MsgArea[消息区域]
+    Layout --&gt; InputArea[输入区域]
+
+    MsgArea --&gt; VML[VirtualMessageList&lt;br/&gt;虚拟消息列表]
+    MsgArea --&gt; TaskList[TaskListV2&lt;br/&gt;任务面板]
+    MsgArea --&gt; TVH[TeammateViewHeader&lt;br/&gt;队友视图]
+
+    InputArea --&gt; PI[PromptInput&lt;br/&gt;输入框]
+    InputArea --&gt; PIC[PromptInputQueuedCommands&lt;br/&gt;排队命令]
+
+    REPL --&gt; Dialogs[对话框层]
+    Dialogs --&gt; PR[PermissionRequest&lt;br/&gt;权限请求]
+    Dialogs --&gt; ED[ElicitationDialog&lt;br/&gt;MCP 表单]
+    Dialogs --&gt; PD[PromptDialog&lt;br/&gt;Hook 提示]
+    Dialogs --&gt; CTD[CostThresholdDialog&lt;br/&gt;费用阈值]
+    Dialogs --&gt; IRD[IdleReturnDialog&lt;br/&gt;空闲返回]
+</code></pre>
+<h2 id="202-输入处理--promptinput-组件"><a class="header" href="#202-输入处理--promptinput-组件">20.2 输入处理 —— PromptInput 组件</a></h2>
+<h3 id="2021-输入组件体系"><a class="header" href="#2021-输入组件体系">20.2.1 输入组件体系</a></h3>
+<p><code>src/components/PromptInput/</code> 目录包含 21 个文件，构成一个完整的输入子系统：</p>
+<pre><code>PromptInput/
+├── PromptInput.tsx              # 主输入组件
+├── PromptInputFooter.tsx        # 底部栏（模式指示器、快捷键提示）
+├── PromptInputFooterLeftSide.tsx # 底部左侧（成本、Token 统计）
+├── PromptInputFooterSuggestions.tsx # 自动补全建议
+├── PromptInputHelpMenu.tsx      # 帮助菜单
+├── PromptInputModeIndicator.tsx # 模式指示器（default/plan/auto）
+├── PromptInputQueuedCommands.tsx # 排队的命令显示
+├── PromptInputStashNotice.tsx   # Stash 提示
+├── ShimmeredInput.tsx           # 推测执行的闪烁输入
+├── inputModes.ts               # 输入模式逻辑
+├── inputPaste.ts               # 粘贴处理
+├── useMaybeTruncateInput.ts    # 超长输入截断
+├── usePromptInputPlaceholder.ts # 占位符文本
+├── useShowFastIconHint.ts      # Fast 模式提示
+├── useSwarmBanner.ts           # Swarm 模式横幅
+├── VoiceIndicator.tsx          # 语音指示器
+└── utils.ts                    # 工具函数
+</code></pre>
+<h3 id="2022-输入模式"><a class="header" href="#2022-输入模式">20.2.2 输入模式</a></h3>
+<p>Claude Code 支持多种输入模式，每种模式改变输入的解释方式：</p>
+<pre><code class="language-typescript">// src/components/PromptInput/inputModes.ts
+export function prependModeCharacterToInput(
+  input: string,
+  mode: PromptInputMode,
+): string {
+  // 不同模式使用不同前缀字符
+  // '!' -&gt; bash 模式（直接执行 shell 命令）
+  // '#' -&gt; 注释模式
+  // 其他特殊前缀
+}
+</code></pre>
+<p>模式切换通过 <code>Shift+Tab</code>（或 Windows 上的 <code>Meta+M</code>）循环：</p>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Default: 启动
+    Default --&gt; Plan: Shift+Tab
+    Plan --&gt; Auto: Shift+Tab
+    Auto --&gt; Default: Shift+Tab
+
+    Default: 默认模式（需确认工具使用）
+    Plan: 计划模式（只规划不执行）
+    Auto: 自动模式（自动确认所有工具）
+</code></pre>
+<h3 id="2023-输入历史与搜索"><a class="header" href="#2023-输入历史与搜索">20.2.3 输入历史与搜索</a></h3>
+<p>REPL 维护命令历史，支持 <code>Up</code>/<code>Down</code> 浏览和 <code>Ctrl+R</code> 反向搜索：</p>
+<pre><code class="language-typescript">// src/screens/REPL.tsx 导入
+import { addToHistory, removeLastFromHistory, expandPastedTextRefs, parseReferences } from '../history.js';
+import { useSearchInput } from '../hooks/useSearchInput.js';
+</code></pre>
+<p><code>HistorySearchInput</code> 组件实现了类似 Bash 的 <code>Ctrl+R</code> 交互 —— 输入搜索词实时过滤历史记录，<code>Enter</code> 选择当前匹配项。</p>
+<h3 id="2024-vim-模式"><a class="header" href="#2024-vim-模式">20.2.4 Vim 模式</a></h3>
+<p>Claude Code 内置了完整的 Vim 模式输入编辑器。状态机定义在 <code>src/vim/types.ts</code>：</p>
+<pre><code class="language-typescript">export type VimState =
+  | { mode: 'INSERT'; insertedText: string }
+  | { mode: 'NORMAL'; command: CommandState }
+
+export type CommandState =
+  | { type: 'idle' }
+  | { type: 'count'; digits: string }
+  | { type: 'operator'; op: Operator; count: number }
+  | { type: 'operatorCount'; op: Operator; count: number; digits: string }
+  | { type: 'operatorFind'; op: Operator; count: number; find: FindType }
+  | { type: 'operatorTextObj'; op: Operator; count: number; scope: TextObjScope }
+  | { type: 'find'; find: FindType; count: number }
+  | { type: 'g'; count: number }
+  | { type: 'replace'; count: number }
+  | { type: 'indent'; dir: '&gt;' | '&lt;'; count: number }
+</code></pre>
+<pre><code class="language-mermaid">stateDiagram-v2
+    state NORMAL {
+        idle --&gt; count: 数字键
+        idle --&gt; operator: d/c/y
+        idle --&gt; find: f/F/t/T
+        idle --&gt; g: g
+        idle --&gt; replace: r
+
+        operator --&gt; operatorCount: 数字键
+        operator --&gt; operatorFind: f/F/t/T
+        operator --&gt; operatorTextObj: i/a
+        operator --&gt; idle: motion 键 → 执行
+
+        count --&gt; idle: motion 键 → 执行
+        count --&gt; operator: d/c/y
+    }
+
+    INSERT --&gt; NORMAL: Escape
+    NORMAL --&gt; INSERT: i/a/o/I/A/O
+</code></pre>
+<p>Vim 模式支持完整的 motion（<code>h/j/k/l/w/b/e/0/$</code>）、operator（<code>d/c/y</code>）、text object（<code>iw/aw/i"/a(</code>）和 dot repeat（<code>.</code>），堪比一个嵌入式的 mini-vim。</p>
+<h2 id="203-消息渲染--虚拟列表与-diff-可视化"><a class="header" href="#203-消息渲染--虚拟列表与-diff-可视化">20.3 消息渲染 —— 虚拟列表与 Diff 可视化</a></h2>
+<h3 id="2031-消息类型"><a class="header" href="#2031-消息类型">20.3.1 消息类型</a></h3>
+<p>REPL 需要渲染多种消息类型：</p>
+<pre><code class="language-typescript">// 来自 types/message.ts
+export type RenderableMessage =
+  | UserMessage      // 用户输入
+  | AssistantMessage // 模型响应
+  | ToolUseMessage   // 工具调用
+  | ToolResultMessage // 工具结果
+  | AttachmentMessage // 附件（CLAUDE.md、技能等）
+  | SystemMessage    // 系统消息
+  | ProgressMessage  // 进度信息
+</code></pre>
+<h3 id="2032-diff-可视化"><a class="header" href="#2032-diff-可视化">20.3.2 Diff 可视化</a></h3>
+<p>文件编辑操作使用结构化 Diff 展示变更：</p>
+<pre><code>src/components/
+├── diff/                    # 基础 diff 算法
+├── StructuredDiff.tsx       # 主 diff 组件
+├── StructuredDiffList.tsx   # diff 列表
+├── FileEditToolDiff.tsx     # FileEdit 工具的 diff 展示
+└── FileEditToolUpdatedMessage.tsx  # 更新消息
+</code></pre>
+<p>Diff 渲染使用 <code>HighlightedCode</code> 组件配合语法高亮，在终端中实现了类似 GitHub PR 页面的 diff 视图：</p>
+<pre><code>  src/utils/auth.ts
+  ┌──────────────────────────────
+  │ - function getApiKey() {
+  │ + function getApiKey(): string {
+  │     const key = process.env.ANTHROPIC_API_KEY
+  │ -   return key
+  │ +   if (!key) throw new Error('Missing API key')
+  │ +   return key
+  │   }
+  └──────────────────────────────
+</code></pre>
+<h3 id="2033-流式渲染"><a class="header" href="#2033-流式渲染">20.3.3 流式渲染</a></h3>
+<p>模型响应是流式到达的。<code>handleMessageFromStream</code> 处理每个流式块，增量更新消息列表：</p>
+<pre><code class="language-typescript">// REPL 中的查询调用
+const result = await query(
+  messages,
+  systemPrompt,
+  tools,
+  // ... 配置
+  {
+    onMessage: (msg) =&gt; {
+      // 流式消息到达时增量更新
+      setMessages(prev =&gt; handleMessageFromStream(prev, msg))
+    },
+    onToolUse: (toolUse) =&gt; {
+      // 工具调用触发权限检查
+    },
+  }
+)
+</code></pre>
+<h3 id="2034-消息选择器"><a class="header" href="#2034-消息选择器">20.3.4 消息选择器</a></h3>
+<p><code>MessageSelector</code> 组件允许用户通过 <code>Shift+Up</code> 导航历史消息并执行操作（编辑、重试、复制）：</p>
+<pre><code class="language-typescript">// src/components/MessageSelector.tsx
+export function selectableUserMessagesFilter(msg: RenderableMessage): boolean {
+  // 过滤出可选择的用户消息
+  // 排除 meta 消息、compact summary、tool results 等
+}
+
+export function messagesAfterAreOnlySynthetic(
+  messages: RenderableMessage[],
+  index: number,
+): boolean {
+  // 检查选中消息之后是否只有合成消息
+  // 用于判断是否可以"从此处重试"
+}
+</code></pre>
+<h2 id="204-权限对话框--交互式权限确认"><a class="header" href="#204-权限对话框--交互式权限确认">20.4 权限对话框 —— 交互式权限确认</a></h2>
+<h3 id="2041-权限请求流程"><a class="header" href="#2041-权限请求流程">20.4.1 权限请求流程</a></h3>
+<p>当模型请求使用工具时，REPL 需要决定是否需要用户确认。整个流程涉及多个异步参与者的竞争：</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Model as AI Model
+    participant Query as Query Engine
+    participant REPL as REPL
+    participant Classifier as Permission Classifier
+    participant User as User
+
+    Model-&gt;&gt;Query: tool_use (e.g., BashTool)
+    Query-&gt;&gt;REPL: onToolUse callback
+    REPL-&gt;&gt;Classifier: 评估权限规则
+
+    alt 已授权
+        Classifier--&gt;&gt;REPL: allow
+        REPL--&gt;&gt;Query: 执行
+    else 需要确认
+        Classifier--&gt;&gt;REPL: needs_confirm
+        REPL-&gt;&gt;User: 显示 PermissionRequest 对话框
+        User-&gt;&gt;REPL: Allow / Deny / Always Allow
+        REPL--&gt;&gt;Query: 执行 / 拒绝
+    else 拒绝
+        Classifier--&gt;&gt;REPL: deny
+        REPL--&gt;&gt;Query: 拒绝
+    end
+</code></pre>
+<h3 id="2042-多通道权限竞争"><a class="header" href="#2042-多通道权限竞争">20.4.2 多通道权限竞争</a></h3>
+<p>在连接了 Claude.ai Bridge 的场景下，权限确认可以来自多个通道：</p>
+<pre><code class="language-typescript">// 权限确认可以来自：
+// 1. 本地终端 UI（PermissionRequest 对话框）
+// 2. Bridge（claude.ai 网页端）
+// 3. Channel（Telegram 等消息通道）
+// 4. Hook（自动化钩子）
+// 5. Classifier（权限分类器自动决策）
+</code></pre>
+<p>第一个响应的通道“赢得“控制权，其他通道被取消。这通过 <code>claim()</code> 机制实现 —— 类似分布式系统中的“领导选举“。</p>
+<h3 id="2043-权限更新持久化"><a class="header" href="#2043-权限更新持久化">20.4.3 权限更新持久化</a></h3>
+<p>用户的权限决定可以被持久化，避免反复确认相同的操作：</p>
+<pre><code class="language-typescript">import { applyPermissionUpdate, persistPermissionUpdate }
+  from '../utils/permissions/PermissionUpdate.js';
+
+// "Always Allow" 选项
+function handleAlwaysAllow(toolName: string, command: string) {
+  const update = { type: 'allow', tool: toolName, pattern: command }
+  applyPermissionUpdate(update, store.setState)
+  persistPermissionUpdate(update)  // 写入 settings.json
+}
+</code></pre>
+<h2 id="205-全局快捷键--vim-模式命令快捷键"><a class="header" href="#205-全局快捷键--vim-模式命令快捷键">20.5 全局快捷键 —— Vim 模式、命令快捷键</a></h2>
+<h3 id="2051-快捷键处理器层次"><a class="header" href="#2051-快捷键处理器层次">20.5.1 快捷键处理器层次</a></h3>
+<p>REPL 中有三层快捷键处理器：</p>
+<pre><code class="language-typescript">// 1. 全局快捷键（始终活跃）
+&lt;GlobalKeybindingHandlers /&gt;
+
+// 2. 命令快捷键（Chat 上下文）
+&lt;CommandKeybindingHandlers /&gt;
+
+// 3. 取消请求处理器（Escape 键）
+&lt;CancelRequestHandler /&gt;
+</code></pre>
+<h3 id="2052-transcript-搜索"><a class="header" href="#2052-transcript-搜索">20.5.2 Transcript 搜索</a></h3>
+<p>在查看转录时，REPL 支持 Vim 风格的搜索：</p>
+<pre><code class="language-typescript">// REPL.tsx 中的注释
+// eslint-disable-next-line custom-rules/prefer-use-keybindings --
+// / n N Esc [ v 是裸字母键在转录模态上下文中，
+// 与 ScrollKeybindingHandler 中的 g/G/j/k 同类
+import { useInput } from '../ink.js';
+</code></pre>
+<ul>
+<li><code>/</code> —— 打开搜索框</li>
+<li><code>n</code> —— 下一个匹配</li>
+<li><code>N</code> —— 上一个匹配</li>
+<li><code>g</code>/<code>G</code> —— 跳到开头/结尾</li>
+<li><code>j</code>/<code>k</code> —— 上下滚动</li>
+</ul>
+<h3 id="2053-特殊交互模式"><a class="header" href="#2053-特殊交互模式">20.5.3 特殊交互模式</a></h3>
+<p><strong>Stash</strong>。<code>Ctrl+S</code> 将当前输入“暂存“，允许用户临时输入其他内容后恢复：</p>
+<pre><code class="language-typescript">'ctrl+s': 'chat:stash',
+</code></pre>
+<p><strong>External Editor</strong>。<code>Ctrl+G</code> 或 <code>Ctrl+X Ctrl+E</code> 打开系统编辑器编辑当前输入，这对于编写长提示尤为有用：</p>
+<pre><code class="language-typescript">import { openFileInExternalEditor } from '../utils/editor.js';
+</code></pre>
+<p><strong>Image Paste</strong>。<code>Ctrl+V</code>（或 Windows 上 <code>Alt+V</code>）粘贴剪贴板中的图片：</p>
+<pre><code class="language-typescript">[IMAGE_PASTE_KEY]: 'chat:imagePaste',
+</code></pre>
+<h3 id="2054-token-预算系统"><a class="header" href="#2054-token-预算系统">20.5.4 Token 预算系统</a></h3>
+<p>REPL 集成了 Token 预算追踪：</p>
+<pre><code class="language-typescript">import {
+  snapshotOutputTokensForTurn,
+  getCurrentTurnTokenBudget,
+  getTurnOutputTokens,
+  getBudgetContinuationCount,
+  getTotalInputTokens,
+} from '../bootstrap/state.js';
+import { parseTokenBudget } from '../utils/tokenBudget.js';
+</code></pre>
+<p>当用户设置了输出 Token 预算时，REPL 在每个轮次结束后检查累计输出是否超出预算。这是控制 Agent 成本的重要机制。</p>
+<h3 id="2055-推测执行集成"><a class="header" href="#2055-推测执行集成">20.5.5 推测执行集成</a></h3>
+<p>REPL 的底层集成了推测执行（Speculation）系统：</p>
+<pre><code class="language-typescript">import { ShimmeredInput } from '../components/PromptInput/ShimmeredInput.js';
+</code></pre>
+<p>当用户输入时，系统可能已经在后台预测用户的意图并预执行。<code>ShimmeredInput</code> 以“闪烁“效果显示推测建议，用户按 Tab 接受。这类似于代码编辑器的自动补全，但作用于整个 Agent 操作序列。</p>
+<h2 id="206-查询循环"><a class="header" href="#206-查询循环">20.6 查询循环</a></h2>
+<h3 id="2061-核心循环"><a class="header" href="#2061-核心循环">20.6.1 核心循环</a></h3>
+<p>REPL 的查询循环是整个应用的“心跳“。用户提交输入后，循环启动：</p>
+<pre><code class="language-mermaid">flowchart TD
+    Input[用户输入] --&gt; Preprocess[预处理&lt;br/&gt;解析引用、展开粘贴]
+    Preprocess --&gt; BuildContext[构建上下文&lt;br/&gt;系统提示、工具集]
+    BuildContext --&gt; Query[调用 query()&lt;br/&gt;流式 API 请求]
+    Query --&gt; Stream[处理流式响应]
+    Stream --&gt; ToolUse{工具调用?}
+    ToolUse --&gt;|是| Permission{需要权限?}
+    Permission --&gt;|是| Ask[显示权限对话框]
+    Permission --&gt;|否| Execute[执行工具]
+    Ask --&gt;|允许| Execute
+    Ask --&gt;|拒绝| Reject[返回拒绝结果]
+    Execute --&gt; Result[工具结果]
+    Result --&gt; Query
+    ToolUse --&gt;|否 (end_turn)| Done[轮次结束]
+    Done --&gt; AutoCompact{需要压缩?}
+    AutoCompact --&gt;|是| Compact[执行压缩]
+    AutoCompact --&gt;|否| Idle[等待下一次输入]
+    Compact --&gt; Idle
+    Reject --&gt; Query
+</code></pre>
+<h3 id="2062-会话恢复集成"><a class="header" href="#2062-会话恢复集成">20.6.2 会话恢复集成</a></h3>
+<p>REPL 启动时可能需要恢复之前的会话：</p>
+<pre><code class="language-typescript">import { computeStandaloneAgentContext, restoreAgentFromSession,
+         restoreSessionStateFromLog, restoreWorktreeForResume,
+         exitRestoredWorktree } from '../utils/sessionRestore.js';
+</code></pre>
+<p>恢复过程包括：加载消息历史、重建文件状态缓存、恢复 Agent 上下文（名称、颜色）、恢复 worktree 状态、重播 session hooks。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>5000 行的 REPL 组件是 Claude Code 的“大脑“。它不仅是一个用户界面，更是整个 Agent 系统的编排中心。从输入处理到消息渲染，从权限协商到推测执行，从会话恢复到多 Agent 路由 —— 所有这些功能在一个组件中交织运行。</p>
+<p>React Compiler 的自动 memoization 使得这个巨型组件能够高效运行而无需手动优化。<code>feature()</code> 宏的条件导入确保了内部特性不泄露到外部构建。Vim 模式的完整状态机实现则体现了对开发者体验的极致追求。</p>
+<p>下一章我们将从 UI 层上升到工程层面，探讨 Claude Code 的性能优化策略。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part8-ui/ch19-ink-react.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part9-engineering/ch21-performance.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part8-ui/ch19-ink-react.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part9-engineering/ch21-performance.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

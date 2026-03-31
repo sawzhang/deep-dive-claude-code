@@ -1,0 +1,481 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>附录 B：源码导航 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/appendix/appendix-b-source-map.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="附录-b源码导航"><a class="header" href="#附录-b源码导航">附录 B：源码导航</a></h1>
+<p>本附录提供 Claude Code 源码库的功能分类索引，帮助读者快速定位关键源码文件。所有路径相对于 <code>src/</code> 目录。源码总量约 1800 个 TypeScript/TSX 文件，合计约 49 万行代码。</p>
+<hr>
+<h2 id="1-入口点与启动"><a class="header" href="#1-入口点与启动">1. 入口点与启动</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>entrypoints/cli.tsx</code></td><td>~300 行</td><td>CLI 入口点，处理 <code>--version</code> 快速路径，委托启动流程给 <code>main.tsx</code></td><td>Ch2 启动流程</td></tr>
+<tr><td><code>main.tsx</code></td><td>~4700 行</td><td>主启动编排，Commander.js 命令注册，init 流程，迁移系统调度，是整个应用最大的单文件之一</td><td>Ch2 启动流程, Ch23 构建系统</td></tr>
+<tr><td><code>entrypoints/init.ts</code></td><td>~340 行</td><td>初始化逻辑：身份认证、设置加载、性能 profiling 初始化</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>entrypoints/sdk/</code></td><td>目录</td><td>SDK 入口和对外暴露的类型定义，供 Agent SDK 集成方使用</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>entrypoints/mcp.ts</code></td><td>~200 行</td><td>MCP 服务器模式入口，将 Claude Code 自身作为 MCP Server 暴露</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>entrypoints/agentSdkTypes.ts</code></td><td>~200 行</td><td>Agent SDK 的公共类型定义，包括 <code>SDKMessage</code>、<code>SDKStatus</code> 等外部投影类型</td><td>Ch1 项目概览</td></tr>
+<tr><td><code>setup.ts</code></td><td>~480 行</td><td>环境检测与初始设置，包括终端能力检测、默认配置写入</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>bootstrap/state.ts</code></td><td>~1760 行</td><td>全局 bootstrap 状态管理，包含会话 ID 生成、全局计数器、成本追踪初始化</td><td>Ch2 启动流程, Ch21 性能优化</td></tr>
+<tr><td><code>migrations/</code></td><td>11 个文件</td><td>配置迁移脚本集合，处理模型重命名链（如 <code>sonnet45 -&gt; sonnet46</code>）、设置格式升级等向后兼容逻辑</td><td>Ch23 构建系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="2-核心引擎"><a class="header" href="#2-核心引擎">2. 核心引擎</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>QueryEngine.ts</code></td><td>~1300 行</td><td>查询引擎类，一个对话对应一个实例，封装 <code>submitMessage</code> 入口、消息流管理、上下文压缩调度和 Agent SDK 适配</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>query.ts</code></td><td>~1730 行</td><td>查询循环核心状态机（<code>queryLoop</code>），驱动 API 请求 -&gt; 流式响应 -&gt; 工具执行 -&gt; 终止判断的迭代过程</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>query/tokenBudget.ts</code></td><td>~90 行</td><td>Token 预算追踪器（<code>BudgetTracker</code>），监控输入/输出 token 用量并判断是否触发压缩</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>query/stopHooks.ts</code></td><td>~50 行</td><td>Turn 终止逻辑，判断当前轮次是否应该结束（<code>Terminal</code>）还是继续（<code>Continue</code>）</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>query/deps.ts</code></td><td>~50 行</td><td>查询依赖注入接口定义</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>query/config.ts</code></td><td>~50 行</td><td>查询循环的配置参数定义</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>utils/messages.ts</code></td><td>~5500 行</td><td>消息核心工具库：<code>createUserMessage</code> 等工厂函数、<code>normalizeMessagesForAPI</code> 多阶段转换、消息合并与过滤逻辑</td><td>Ch5 消息系统</td></tr>
+<tr><td><code>cost-tracker.ts</code></td><td>~320 行</td><td>API 调用成本追踪，提供 <code>getModelUsage</code>、<code>getTotalAPIDuration</code>、<code>getTotalCost</code> 等聚合函数</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>services/api/claude.ts</code></td><td>~3400 行</td><td>Anthropic API 客户端核心，封装流式请求、重试逻辑、用量累计和错误处理</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>services/api/errors.ts</code></td><td>~200 行</td><td>API 错误分类与处理，区分可重试和不可重试错误，处理 prompt 过长等特殊情况</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>services/api/withRetry.ts</code></td><td>~200 行</td><td>通用重试机制，支持指数退避和 fallback 触发</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>utils/conversationRecovery.ts</code></td><td>~300 行</td><td>会话恢复逻辑，支持 <code>--resume</code> 从中断处恢复对话</td><td>Ch18 对话管理</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="3-工具系统"><a class="header" href="#3-工具系统">3. 工具系统</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Tool.ts</code></td><td>~790 行</td><td>Tool 接口定义（30+ 方法）、<code>ToolUseContext</code> 类型、<code>buildTool</code> 工厂函数、<code>TOOL_DEFAULTS</code> 默认值</td><td>Ch7 工具架构</td></tr>
+<tr><td><code>tools.ts</code></td><td>~390 行</td><td>工具注册表，<code>getAllBaseTools</code> 收集所有内置工具、条件加载 ant-only 工具和 feature-gated 工具</td><td>Ch7 工具架构</td></tr>
+<tr><td><code>tools/BashTool/</code></td><td>18 个文件</td><td>Bash 工具完整实现：命令执行（<code>BashTool.tsx</code>，~1140 行）、安全分类（<code>bashSecurity.ts</code>）、权限检查（<code>bashPermissions.ts</code>）、路径验证、sed 验证、只读模式强制、破坏性命令警告等</td><td>Ch8 内置工具, Ch14 Bash 安全</td></tr>
+<tr><td><code>tools/FileReadTool/</code></td><td>~1180 行</td><td>文件读取工具，支持文本文件、图片、PDF、Jupyter Notebook 等多种格式</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/FileEditTool/</code></td><td>~630 行</td><td>文件编辑工具，基于唯一性字符串匹配的精确替换机制，支持并发编辑检测</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/FileWriteTool/</code></td><td>~500 行</td><td>文件写入工具，整文件覆盖写入</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/GlobTool/</code></td><td>~400 行</td><td>文件名模式搜索工具，底层集成 Ripgrep</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/GrepTool/</code></td><td>~580 行</td><td>文件内容搜索工具，底层集成 Ripgrep，支持正则、上下文行、多行匹配</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/WebFetchTool/</code></td><td>~320 行</td><td>URL 内容抓取工具，HTML 转 Markdown 处理</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/WebSearchTool/</code></td><td>~440 行</td><td>网络搜索工具</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/NotebookEditTool/</code></td><td>~300 行</td><td>Jupyter Notebook 单元格编辑工具</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/ToolSearchTool/</code></td><td>~470 行</td><td>延迟工具加载的核心，按需搜索和加载工具 schema 以减少初始 prompt 大小</td><td>Ch7 工具架构</td></tr>
+<tr><td><code>tools/MCPTool/</code></td><td>~80 行</td><td>MCP 工具代理，将 MCP Server 暴露的工具包装为本地 Tool 接口</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>tools/AskUserQuestionTool/</code></td><td>~200 行</td><td>交互式用户提问工具，允许 Claude 主动向用户征求输入</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/TaskCreateTool/</code></td><td>~300 行</td><td>后台任务创建工具</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>tools/REPLTool/</code></td><td>~500 行</td><td>交互式代码执行工具（ant-only），支持 JavaScript/Python 等语言的 REPL</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>services/tools/StreamingToolExecutor.ts</code></td><td>~530 行</td><td>流式并发调度器，管理工具的四态生命周期（queued -&gt; executing -&gt; completed -&gt; yielded）</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>services/tools/toolExecution.ts</code></td><td>~1750 行</td><td>工具执行管线核心，<code>runToolUse</code> 入口、schema 验证、结果处理、<code>buildSchemaNotSentHint</code> 延迟加载提示</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>services/tools/toolHooks.ts</code></td><td>~650 行</td><td>Pre/Post 工具钩子执行引擎，处理 <code>PreToolUse</code> 和 <code>PostToolUse</code> 事件的钩子注册与调度</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>services/tools/toolOrchestration.ts</code></td><td>~190 行</td><td>工具编排层，协调多工具并发执行和结果聚合</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>tools/shared/spawnMultiAgent.ts</code></td><td>~1090 行</td><td>多 Agent 并行派生的共享实现，被 AgentTool 和 TaskTool 复用</td><td>Ch11 子智能体</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="4-agent-系统"><a class="header" href="#4-agent-系统">4. Agent 系统</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>tools/AgentTool/AgentTool.tsx</code></td><td>~1400 行</td><td>Agent 工具主入口，处理 Agent 定义解析、工具过滤、消息构建和 UI 渲染</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>tools/AgentTool/loadAgentsDir.ts</code></td><td>~760 行</td><td>Agent 定义加载器，从 <code>.claude/agents/</code> 目录解析 Markdown frontmatter 并转换为 <code>AgentDefinition</code> 类型</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>tools/AgentTool/builtInAgents.ts</code></td><td>~200 行</td><td>内置 Agent 注册中心（<code>getBuiltInAgents</code>），汇总 Explore、Plan、Verification 等预定义 Agent</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>tools/AgentTool/built-in/</code></td><td>目录</td><td>内置 Agent 定义目录：<code>exploreAgent.ts</code>（只读探索）、<code>planAgent.ts</code>（规划）、<code>verificationAgent.ts</code>（对抗验证）、<code>generalPurposeAgent.ts</code>（通用）、<code>claudeCodeGuideAgent.ts</code>（动态指南）</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>tools/AgentTool/agentToolUtils.ts</code></td><td>~300 行</td><td>Agent 工具辅助函数：<code>resolveAgentTools</code>（工具解析）、<code>filterToolsForAgent</code>（工具过滤）</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>tools/AgentTool/forkSubagent.ts</code></td><td>~210 行</td><td>Fork 机制实现，<code>buildForkedMessages</code> 构建子 Agent 的初始消息，克隆父 Agent 上下文并共享 prompt cache</td><td>Ch11 子智能体</td></tr>
+<tr><td><code>tools/AgentTool/runAgent.ts</code></td><td>~970 行</td><td>Agent 运行时核心，<code>runAgent</code> 函数启动查询循环、<code>initializeAgentMcpServers</code> 初始化 Agent 专属的 MCP 连接</td><td>Ch11 子智能体</td></tr>
+<tr><td><code>tools/AgentTool/resumeAgent.ts</code></td><td>~270 行</td><td>Agent 恢复机制，从 sidechain transcript 重建中断的 Agent 执行状态</td><td>Ch11 子智能体</td></tr>
+<tr><td><code>tools/AgentTool/agentMemory.ts</code></td><td>~200 行</td><td>Agent 记忆系统，三级范围（session/project/global）的记忆读写</td><td>Ch11 子智能体</td></tr>
+<tr><td><code>tools/AgentTool/prompt.ts</code></td><td>~300 行</td><td>Agent 系统提示词构建，根据 Agent 类型和配置动态组装 system prompt</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>coordinator/coordinatorMode.ts</code></td><td>~370 行</td><td>协调者模式实现，支持一个主 Agent 分配任务给多个子 Agent 并行执行</td><td>Ch11 子智能体</td></tr>
+<tr><td><code>tools/SkillTool/SkillTool.ts</code></td><td>~1110 行</td><td>Skill 执行引擎，<code>executeForkedSkill</code> 将 Skill 定义转化为 Agent 调用</td><td>Ch12 技能系统</td></tr>
+<tr><td><code>skills/bundledSkills.ts</code></td><td>~220 行</td><td>内置 Skill 注册表，列举所有随 Claude Code 分发的预置技能</td><td>Ch12 技能系统</td></tr>
+<tr><td><code>skills/loadSkillsDir.ts</code></td><td>~1090 行</td><td>文件系统 Skill 发现器，扫描 <code>.claude/skills/</code> 目录并解析 Markdown frontmatter 定义</td><td>Ch12 技能系统</td></tr>
+<tr><td><code>skills/mcpSkillBuilders.ts</code></td><td>~200 行</td><td>将 MCP 提供的 prompt template 转换为 Skill 定义的适配层</td><td>Ch12 技能系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="5-权限与安全"><a class="header" href="#5-权限与安全">5. 权限与安全</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>types/permissions.ts</code></td><td>~440 行</td><td>权限类型定义核心：<code>PermissionMode</code>（多种模式枚举）、<code>PermissionRule</code>、<code>PermissionResult</code> 等基础类型</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/permissions.ts</code></td><td>~500 行</td><td>权限检查入口：<code>hasPermissionsToUseTool</code>、权限规则匹配引擎</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/PermissionMode.ts</code></td><td>~200 行</td><td>权限模式配置（每种模式的符号、颜色、行为定义）</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/PermissionResult.ts</code></td><td>~100 行</td><td>权限结果类型（allow/deny/ask）的构造和判断辅助函数</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/permissionSetup.ts</code></td><td>~1530 行</td><td>权限系统初始化，配置各工具的默认权限规则和 bypass 模式设置</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/permissionsLoader.ts</code></td><td>~300 行</td><td>从 settings.json 加载和解析用户自定义权限规则</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/permissionRuleParser.ts</code></td><td>~200 行</td><td>权限规则的 glob/正则匹配解析器</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/bashClassifier.ts</code></td><td>~500 行</td><td>Bash 命令自动分类器，判断命令是读取、修改还是危险操作</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>utils/permissions/yoloClassifier.ts</code></td><td>~400 行</td><td>Auto 模式（“YOLO“模式）自动审批分类器，判断哪些操作可以自动批准</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/denialTracking.ts</code></td><td>~50 行</td><td>拒绝计数器，追踪连续拒绝次数并触发升级机制</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>utils/permissions/dangerousPatterns.ts</code></td><td>~300 行</td><td>危险命令模式库，定义需要特别警告的 shell 命令模式</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>tools/BashTool/bashSecurity.ts</code></td><td>~500 行</td><td>Bash 命令安全深度分析引擎</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>tools/BashTool/readOnlyValidation.ts</code></td><td>~400 行</td><td>只读模式强制执行器，在 Plan 模式下阻止所有写入操作</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>tools/BashTool/sedValidation.ts</code></td><td>~300 行</td><td>sed 命令专项安全验证器</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>tools/BashTool/pathValidation.ts</code></td><td>~300 行</td><td>路径边界校验器，确保命令不超出允许的目录范围</td><td>Ch14 Bash 安全</td></tr>
+<tr><td><code>hooks/useCanUseTool.tsx</code></td><td>~200 行</td><td>权限检查 React hook，<code>CanUseToolFn</code> 的实际实现，串联所有权限检查逻辑</td><td>Ch13 权限模型</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="6-mcp-协议"><a class="header" href="#6-mcp-协议">6. MCP 协议</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>services/mcp/client.ts</code></td><td>~3350 行</td><td>MCP 客户端核心实现，连接管理、工具发现、资源读取、prompt template 获取、采样请求处理</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/config.ts</code></td><td>~500 行</td><td>MCP 配置管理，多源合并（全局配置、项目配置、settings.json），支持环境变量展开</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/types.ts</code></td><td>~300 行</td><td>MCP 类型定义：<code>MCPServerConnection</code>（连接对象）、<code>ServerResource</code>（资源）、<code>MCPToolConfig</code>（工具配置）</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/auth.ts</code></td><td>~2470 行</td><td>MCP OAuth 认证核心，<code>ClaudeAuthProvider</code> 实现完整的 OAuth 2.0 + PKCE 授权码流程</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><code>services/mcp/xaa.ts</code></td><td>~510 行</td><td>XAA 跨账户访问实现，基于 RFC 8693 Token Exchange + RFC 7523 JWT Bearer 的企业级认证</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><code>services/mcp/xaaIdpLogin.ts</code></td><td>~200 行</td><td>XAA 身份提供商（IdP）登录集成</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><code>services/mcp/elicitationHandler.ts</code></td><td>~310 行</td><td>MCP Elicitation 处理器，处理 Server 向 Client 主动请求额外输入信息的交互流程</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/channelPermissions.ts</code></td><td>~200 行</td><td>MCP 通道权限控制，管理不同 MCP Server 的信任级别和工具调用权限</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><code>services/mcp/normalization.ts</code></td><td>~150 行</td><td>MCP 工具名称标准化，处理命名冲突和工具名映射</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/InProcessTransport.ts</code></td><td>~100 行</td><td>进程内 MCP 传输实现，用于将内置功能包装为 MCP Server 接口</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/SdkControlTransport.ts</code></td><td>~100 行</td><td>SDK 控制传输层，通过 Agent SDK 暴露的 MCP 消息通道</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/MCPConnectionManager.tsx</code></td><td>~70 行</td><td>MCP 连接生命周期管理的 React 组件包装</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>services/mcp/useManageMCPConnections.ts</code></td><td>~300 行</td><td>MCP 连接生命周期管理的 React hook，处理连接建立、重连和清理</td><td>Ch15 MCP 协议</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="7-状态管理"><a class="header" href="#7-状态管理">7. 状态管理</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>state/AppState.tsx</code></td><td>~200 行</td><td>React Context Provider，通过 <code>AppStateProvider</code> 向组件树注入全局状态，集成 React Compiler</td><td>Ch17 状态管理</td></tr>
+<tr><td><code>state/AppStateStore.ts</code></td><td>~570 行</td><td>状态存储定义核心，<code>AppState</code> 类型声明、<code>getDefaultAppState</code> 初始值工厂、<code>SpeculationState</code> 推测执行状态</td><td>Ch17 状态管理</td></tr>
+<tr><td><code>state/store.ts</code></td><td>~34 行</td><td>Zustand-like 的 <code>createStore</code> 工厂函数，支持 <code>useSyncExternalStore</code> 订阅模式</td><td>Ch17 状态管理</td></tr>
+<tr><td><code>state/selectors.ts</code></td><td>~100 行</td><td>状态选择器函数，从 <code>AppState</code> 中高效提取派生数据</td><td>Ch17 状态管理</td></tr>
+<tr><td><code>state/onChangeAppState.ts</code></td><td>~100 行</td><td>状态变更监听器，处理状态变化时的副作用（如 UI 更新通知）</td><td>Ch17 状态管理</td></tr>
+<tr><td><code>services/compact/compact.ts</code></td><td>~1710 行</td><td>会话压缩核心引擎，<code>buildPostCompactMessages</code> 构建压缩后的消息列表，支持多种压缩策略</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>services/compact/autoCompact.ts</code></td><td>~350 行</td><td>自动压缩触发器，<code>calculateTokenWarningState</code> 判断 token 用量阈值并触发压缩</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>services/compact/microCompact.ts</code></td><td>~530 行</td><td>微压缩策略，使用快速模型对单条过长工具结果进行局部摘要</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>services/compact/sessionMemoryCompact.ts</code></td><td>~300 行</td><td>会话记忆压缩，从 Compaction 中提取跨会话有价值的关键信息</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>services/compact/prompt.ts</code></td><td>~200 行</td><td>Compaction 提示词模板，指导 Claude 如何生成对话摘要</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>services/compact/grouping.ts</code></td><td>~200 行</td><td>消息分组逻辑，将相关消息组合为可压缩的单元</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>utils/sessionStorage.ts</code></td><td>~500 行</td><td>Transcript 录制器（<code>recordTranscript</code>），JSONL 格式增量写入会话消息到磁盘</td><td>Ch5 消息系统, Ch18 对话管理</td></tr>
+<tr><td><code>history.ts</code></td><td>~460 行</td><td>会话历史管理，列举、加载和搜索历史对话</td><td>Ch18 对话管理</td></tr>
+<tr><td><code>utils/fileStateCache.ts</code></td><td>~140 行</td><td>文件状态缓存，LRU 策略缓存文件内容，<code>cloneFileStateCache</code> 支持 Agent fork 时的缓存克隆</td><td>Ch9 工具执行</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="8-ui-组件"><a class="header" href="#8-ui-组件">8. UI 组件</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>components/App.tsx</code></td><td>~55 行</td><td>根应用组件，组装 Provider 树并渲染主界面</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>components/Messages.tsx</code></td><td>~300 行</td><td>消息列表组件，渲染对话中的所有消息</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/Message.tsx</code></td><td>~400 行</td><td>单条消息渲染组件，根据消息类型分发到对应的子组件</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/MessageRow.tsx</code></td><td>~300 行</td><td>消息行布局组件，处理消息的缩进、图标和时间戳</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/PromptInput/</code></td><td>目录</td><td>用户输入组件群，处理多行输入、自动补全、附件拖拽等交互</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/messages/</code></td><td>目录</td><td>消息类型渲染组件群，为不同消息类型（工具结果、错误、Markdown 等）提供专门的渲染逻辑</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/permissions/</code></td><td>目录</td><td>权限对话框组件群，渲染工具执行确认、权限模式选择等交互界面</td><td>Ch13 权限模型, Ch20 REPL</td></tr>
+<tr><td><code>components/diff/</code></td><td>目录</td><td>Diff 显示组件，文件编辑工具的结果可视化</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/StructuredDiff.tsx</code></td><td>~300 行</td><td>结构化 Diff 渲染，语法高亮的行级差异展示</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/Markdown.tsx</code></td><td>~200 行</td><td>Markdown 渲染组件，将 Markdown 文本渲染为终端格式化输出</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/StatusLine.tsx</code></td><td>~200 行</td><td>状态栏组件，显示当前模型、token 用量、权限模式等运行时信息</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/mcp/</code></td><td>目录</td><td>MCP 相关 UI 组件，包括 Server 审批对话框、连接状态显示等</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><code>components/Settings/</code></td><td>目录</td><td>设置界面组件，交互式配置管理</td><td>Ch20 REPL</td></tr>
+<tr><td><code>components/agents/</code></td><td>14 个文件</td><td>Agent 管理界面：Agent 列表、编辑器、创建向导、工具/模型选择器等</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><code>ink/</code></td><td>50+ 模块</td><td>Ink 框架深度定制 fork：React 终端渲染器核心，包含 reconciler、renderer、DOM 抽象、焦点管理、搜索高亮、虚拟滚动等</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/ink.tsx</code></td><td>~1720 行</td><td>Ink 框架主入口，React 组件到终端字符矩阵的渲染管线</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/reconciler.ts</code></td><td>~510 行</td><td>终端专用 React 协调器（reconciler），处理虚拟 DOM 差异比较</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/renderer.ts</code></td><td>~180 行</td><td>终端渲染器，将协调器输出的变更应用到终端屏幕</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/dom.ts</code></td><td>~300 行</td><td>终端 DOM 抽象层，模拟浏览器 DOM 接口供 React 使用</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/focus.ts</code></td><td>~200 行</td><td>终端焦点管理系统</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>ink/output.ts</code></td><td>~200 行</td><td>终端输出缓冲和优化</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>native-ts/</code></td><td>目录</td><td>原生 TypeScript 模块，包含 Yoga WASM 布局引擎绑定</td><td>Ch19 Ink/React</td></tr>
+<tr><td><code>hooks/useGlobalKeybindings.tsx</code></td><td>~300 行</td><td>全局快捷键绑定 hook，处理 Ctrl+C、Ctrl+D、搜索等系统级按键</td><td>Ch20 REPL</td></tr>
+<tr><td><code>keybindings/</code></td><td>14 个文件</td><td>快捷键系统：schema 定义、用户自定义绑定加载、冲突检测、chord 组合键支持</td><td>Ch20 REPL</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="9-工程基础设施"><a class="header" href="#9-工程基础设施">9. 工程基础设施</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>文件</th><th>大小估计</th><th>职责</th><th>相关章节</th></tr>
+</thead>
+<tbody>
+<tr><td><code>utils/config.ts</code></td><td>~1820 行</td><td>全局配置管理核心，<code>getGlobalConfig</code> 入口、配置文件读写、多层配置合并（全局/项目/环境）</td><td>Ch23 构建系统</td></tr>
+<tr><td><code>utils/claudemd.ts</code></td><td>~1480 行</td><td>CLAUDE.md 文件加载与解析，支持层级式加载（全局 -&gt; 项目 -&gt; 子目录）、外部 include、安全检查</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>services/analytics/growthbook.ts</code></td><td>~1160 行</td><td>GrowthBook 特性开关集成，远程配置拉取、实验分组、事件追踪</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>services/analytics/</code></td><td>目录</td><td>遥测分析服务集合，事件日志、使用统计、实验数据上报</td><td>Ch23 构建系统</td></tr>
+<tr><td><code>utils/lazySchema.ts</code></td><td>~8 行</td><td>Zod schema 延迟构造包装器，一行代码打破模块循环依赖</td><td>Ch3 类型系统</td></tr>
+<tr><td><code>schemas/hooks.ts</code></td><td>~200 行</td><td>Hook 配置的 Zod 验证 schema，定义 settings.json 中 hooks 字段的合法结构</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>utils/hooks/</code></td><td>17 个文件</td><td>异步 Hook 注册与执行基础设施：<code>AsyncHookRegistry</code>（注册中心）、<code>hookHelpers</code>（辅助函数）、<code>hooksConfigManager</code>（配置管理）、各类 Hook 执行器</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>utils/hooks/hookHelpers.ts</code></td><td>~300 行</td><td>Hook 执行辅助函数，处理 Hook 脚本的调用、超时和错误处理</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>services/lsp/</code></td><td>7 个文件</td><td>LSP（Language Server Protocol）集成：<code>LSPClient</code>（客户端）、<code>LSPServerManager</code>（服务器管理）、<code>LSPDiagnosticRegistry</code>（诊断注册）</td><td>Ch8 内置工具</td></tr>
+<tr><td><code>services/oauth/</code></td><td>5 个文件</td><td>OAuth 2.0 认证流程实现：<code>auth-code-listener</code>（授权码监听）、<code>crypto</code>（PKCE 计算）、<code>getOauthProfile</code>（用户信息获取）</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><code>services/plugins/</code></td><td>3 个文件</td><td>插件系统：<code>PluginInstallationManager</code>（安装管理）、<code>pluginOperations</code>（操作接口）、<code>pluginCliCommands</code>（CLI 命令）</td><td>Ch12 技能系统</td></tr>
+<tr><td><code>plugins/builtinPlugins.ts</code></td><td>~100 行</td><td>内置插件注册表</td><td>Ch12 技能系统</td></tr>
+<tr><td><code>types/ids.ts</code></td><td>~44 行</td><td>品牌类型 ID 定义，<code>SessionId</code>、<code>AgentId</code> 等强类型标识符</td><td>Ch3 类型系统</td></tr>
+<tr><td><code>types/permissions.ts</code></td><td>~440 行</td><td>权限相关类型的集中定义，<code>AdditionalWorkingDirectory</code>、<code>PermissionMode</code> 枚举等</td><td>Ch13 权限模型</td></tr>
+<tr><td><code>types/hooks.ts</code></td><td>~100 行</td><td>Hook 事件类型定义</td><td>Ch9 工具执行</td></tr>
+<tr><td><code>utils/envUtils.ts</code></td><td>~100 行</td><td>环境变量工具函数，<code>isBareMode</code>、<code>isEnvTruthy</code> 等判断辅助</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>utils/cwd.ts</code></td><td>~100 行</td><td>工作目录管理，<code>getCwd</code> 获取当前工作目录</td><td>Ch2 启动流程</td></tr>
+<tr><td><code>utils/abortController.ts</code></td><td>~50 行</td><td>增强版 AbortController 封装，支持超时和级联取消</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>utils/systemPrompt.ts</code></td><td>~120 行</td><td>系统提示词构建辅助函数，<code>asSystemPrompt</code> 类型标记</td><td>Ch4 查询引擎</td></tr>
+<tr><td><code>commands.ts</code></td><td>~750 行</td><td>斜杠命令注册中心，定义 <code>/help</code>、<code>/clear</code>、<code>/model</code> 等内置命令</td><td>Ch20 REPL</td></tr>
+<tr><td><code>bridge/</code></td><td>15 个文件</td><td>IDE 桥接通信层：<code>bridgeApi</code>（HTTP API）、<code>replBridgeTransport</code>（传输层）、<code>sessionRunner</code>（远程会话运行）、<code>bridgePermissionCallbacks</code>（权限回调）</td><td>Ch20 REPL</td></tr>
+<tr><td><code>voice/</code></td><td>目录</td><td>语音交互模块（ant-only），语音输入转文字和语音输出</td><td>Ch20 REPL</td></tr>
+<tr><td><code>vim/</code></td><td>5 个文件</td><td>Vim 模式支持：<code>motions</code>（光标移动）、<code>operators</code>（操作符）、<code>textObjects</code>（文本对象）、<code>transitions</code>（模式转换）</td><td>Ch20 REPL</td></tr>
+<tr><td><code>context/</code></td><td>9 个文件</td><td>React Context 定义：<code>mailbox</code>（消息邮箱）、<code>notifications</code>（通知）、<code>modalContext</code>（模态框）、<code>voice</code>（语音）等全局上下文</td><td>Ch17 状态管理</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<blockquote>
+<p><strong>提示</strong>：源码文件路径和行数可能随版本更新而变化。本索引基于 Claude Code 的当前源码编写，大小估计以源码行数计。实际打包产物的体积会因 DCE 和 minification 而显著缩小。</p>
+</blockquote>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../appendix/appendix-a-glossary.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../appendix/appendix-a-glossary.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

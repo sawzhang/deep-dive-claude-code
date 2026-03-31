@@ -1,0 +1,636 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 22 章：测试策略 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part9-engineering/ch22-testing.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-22-章测试策略"><a class="header" href="#第-22-章测试策略">第 22 章：测试策略</a></h1>
+<blockquote>
+<p>“测试 AI Agent 系统是软件工程中最具挑战性的任务之一 —— 当被测对象本身是非确定性的，传统的断言模型几乎全部失效。”</p>
+</blockquote>
+<p>Claude Code 面临一个独特的测试难题：它的核心行为依赖于大型语言模型的输出，而这个输出是非确定性的。如何在这种条件下构建可靠的测试体系？本章将揭示 Claude Code 的测试策略。</p>
+<h2 id="221-测试分层"><a class="header" href="#221-测试分层">22.1 测试分层</a></h2>
+<h3 id="2211-测试金字塔"><a class="header" href="#2211-测试金字塔">22.1.1 测试金字塔</a></h3>
+<p>Claude Code 的测试分为四个层次：</p>
+<pre><code class="language-mermaid">graph TD
+    subgraph "测试金字塔"
+        E2E[端到端测试&lt;br/&gt;真实 API 集成]
+        Integration[集成测试&lt;br/&gt;模块间交互]
+        Component[组件测试&lt;br/&gt;React 组件]
+        Unit[单元测试&lt;br/&gt;纯函数逻辑]
+    end
+
+    E2E --&gt; |少量，高成本| Real[真实 API 调用]
+    Integration --&gt; |中等数量| Mock[模拟 API 响应]
+    Component --&gt; |大量| Snapshot[快照测试]
+    Unit --&gt; |最多| Pure[纯逻辑测试]
+
+    style E2E fill:#ff9999
+    style Integration fill:#ffcc99
+    style Component fill:#ffff99
+    style Unit fill:#99ff99
+</code></pre>
+<h3 id="2212-单元测试策略"><a class="header" href="#2212-单元测试策略">22.1.2 单元测试策略</a></h3>
+<p>纯函数是最容易测试的部分。消息处理、Token 估算、路径归一化等函数有确定性的输入输出映射：</p>
+<pre><code class="language-typescript">// 示例：compact grouping 的测试
+describe('groupMessagesByApiRound', () =&gt; {
+  it('should group messages by assistant message id boundaries', () =&gt; {
+    const messages = [
+      createUserMessage({ content: 'hello' }),
+      createAssistantMessage({ id: 'a1', content: 'response 1' }),
+      createUserMessage({ content: 'follow up' }),
+      createAssistantMessage({ id: 'a2', content: 'response 2' }),
+    ]
+    const groups = groupMessagesByApiRound(messages)
+    expect(groups).toHaveLength(2)
+    expect(groups[0]).toHaveLength(2)  // user + assistant a1
+    expect(groups[1]).toHaveLength(2)  // user + assistant a2
+  })
+})
+</code></pre>
+<h3 id="2213-权限系统测试"><a class="header" href="#2213-权限系统测试">22.1.3 权限系统测试</a></h3>
+<p>权限分类器是 Claude Code 的安全关键路径，需要特别详尽的测试：</p>
+<pre><code class="language-typescript">// 测试 Bash 命令的安全分类
+describe('bashPermissions', () =&gt; {
+  it('should block rm -rf /', () =&gt; {
+    const result = classifyCommand('rm -rf /')
+    expect(result).toBe('deny')
+  })
+
+  it('should allow ls -la', () =&gt; {
+    const result = classifyCommand('ls -la')
+    expect(result).toBe('allow')
+  })
+
+  it('should require confirmation for pip install', () =&gt; {
+    const result = classifyCommand('pip install requests')
+    expect(result).toBe('needs_confirm')
+  })
+})
+</code></pre>
+<h2 id="222-harness-engineering--测试基础设施"><a class="header" href="#222-harness-engineering--测试基础设施">22.2 Harness Engineering —— 测试基础设施</a></h2>
+<h3 id="2221-测试工具库"><a class="header" href="#2221-测试工具库">22.2.1 测试工具库</a></h3>
+<p>Claude Code 的测试中有一个重要的概念 —— Harness（测试夹具）。这些是可复用的测试基础设施，处理常见的测试场景：</p>
+<pre><code class="language-typescript">// 消息工厂函数
+function createTestUserMessage(content: string): UserMessage {
+  return {
+    type: 'user',
+    message: { role: 'user', content },
+    uuid: randomUUID(),
+    timestamp: new Date().toISOString(),
+  }
+}
+
+function createTestAssistantMessage(content: string): AssistantMessage {
+  return {
+    type: 'assistant',
+    message: {
+      id: `msg_${randomUUID()}`,
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'text', text: content }],
+    },
+    uuid: randomUUID(),
+    timestamp: new Date().toISOString(),
+  }
+}
+</code></pre>
+<h3 id="2222-store-测试"><a class="header" href="#2222-store-测试">22.2.2 Store 测试</a></h3>
+<p>Store 的测试验证状态管理的核心契约：</p>
+<pre><code class="language-typescript">describe('createStore', () =&gt; {
+  it('should not notify when state is identical (Object.is)', () =&gt; {
+    const listener = jest.fn()
+    const store = createStore({ count: 0 })
+    store.subscribe(listener)
+
+    // 返回相同引用 → 不通知
+    store.setState(prev =&gt; prev)
+    expect(listener).not.toHaveBeenCalled()
+
+    // 返回不同引用 → 通知
+    store.setState(prev =&gt; ({ ...prev, count: 1 }))
+    expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('should call onChange with old and new state', () =&gt; {
+    const onChange = jest.fn()
+    const store = createStore({ count: 0 }, onChange)
+
+    store.setState(prev =&gt; ({ ...prev, count: 1 }))
+
+    expect(onChange).toHaveBeenCalledWith({
+      newState: { count: 1 },
+      oldState: { count: 0 },
+    })
+  })
+})
+</code></pre>
+<h3 id="2223-会话恢复测试"><a class="header" href="#2223-会话恢复测试">22.2.3 会话恢复测试</a></h3>
+<p>会话恢复涉及复杂的边界情况，需要系统性测试：</p>
+<pre><code class="language-typescript">describe('deserializeMessages', () =&gt; {
+  it('should filter unresolved tool uses', () =&gt; {
+    const messages = [
+      createTestUserMessage('hello'),
+      createTestAssistantMessage('I will read a file'),
+      // tool_use 没有对应的 tool_result（崩溃场景）
+      createToolUseMessage('Read', { file_path: '/tmp/test' }),
+    ]
+    const result = deserializeMessages(messages)
+    // tool_use 没有匹配的 result → 被过滤
+    expect(result).toHaveLength(2)
+  })
+
+  it('should detect interrupted prompt', () =&gt; {
+    const messages = [
+      createTestUserMessage('hello'),
+      createTestAssistantMessage('response'),
+      createTestUserMessage('do something'),
+      // 没有后续 assistant 响应 → 中断
+    ]
+    const result = deserializeMessagesWithInterruptDetection(messages)
+    expect(result.turnInterruptionState.kind).toBe('interrupted_prompt')
+  })
+})
+</code></pre>
+<h2 id="223-ai-系统测试"><a class="header" href="#223-ai-系统测试">22.3 AI 系统测试</a></h2>
+<h3 id="2231-非确定性系统的测试策略"><a class="header" href="#2231-非确定性系统的测试策略">22.3.1 非确定性系统的测试策略</a></h3>
+<p>测试 AI Agent 的关键挑战在于非确定性。Claude Code 采用以下策略：</p>
+<pre><code class="language-mermaid">graph TD
+    subgraph "确定性层（完全可测）"
+        A1[消息序列化/反序列化]
+        A2[Token 计算]
+        A3[权限分类]
+        A4[路径处理]
+    end
+
+    subgraph "半确定性层（结构化测试）"
+        B1[压缩摘要格式]
+        B2[工具输入验证]
+        B3[系统提示构建]
+    end
+
+    subgraph "非确定性层（行为测试）"
+        C1[模型响应质量]
+        C2[工具选择策略]
+        C3[多轮对话一致性]
+    end
+</code></pre>
+<p><strong>确定性层</strong> —— 使用传统的断言测试。消息处理、Token 计算等函数有确定性的输入输出映射。</p>
+<p><strong>半确定性层</strong> —— 使用结构验证。例如压缩摘要必须包含 <code>&lt;summary&gt;</code> 标签，但标签内的内容是非确定性的。</p>
+<p><strong>非确定性层</strong> —— 使用行为特征测试。不断言精确输出，而是断言输出的结构特征（如“应该包含文件名“、“不应该包含被删除的上下文”）。</p>
+<h3 id="2232-compact-摘要测试"><a class="header" href="#2232-compact-摘要测试">22.3.2 Compact 摘要测试</a></h3>
+<pre><code class="language-typescript">describe('formatCompactSummary', () =&gt; {
+  it('should strip analysis section', () =&gt; {
+    const summary = `&lt;analysis&gt;
+thinking process here...
+&lt;/analysis&gt;
+
+&lt;summary&gt;
+1. Primary Request: Fix the bug
+2. Key Technical Concepts: React, TypeScript
+&lt;/summary&gt;`
+
+    const result = formatCompactSummary(summary)
+    expect(result).not.toContain('&lt;analysis&gt;')
+    expect(result).toContain('Summary:')
+    expect(result).toContain('Fix the bug')
+  })
+})
+</code></pre>
+<h3 id="2233-feature-flag-测试"><a class="header" href="#2233-feature-flag-测试">22.3.3 Feature Flag 测试</a></h3>
+<p><code>feature()</code> 宏在不同构建配置下会产生不同的代码路径。测试需要覆盖两种构建：</p>
+<pre><code class="language-typescript">// 外部构建：feature('VOICE_MODE') === false
+describe('external build', () =&gt; {
+  it('should use noop voice integration', () =&gt; {
+    const integration = useVoiceIntegration()
+    expect(integration.handleKeyEvent).toBeDefined()
+    // 空实现不应抛出
+    integration.handleKeyEvent()
+  })
+})
+</code></pre>
+<h3 id="2234-filestatecache-测试"><a class="header" href="#2234-filestatecache-测试">22.3.4 FileStateCache 测试</a></h3>
+<pre><code class="language-typescript">describe('FileStateCache', () =&gt; {
+  it('should normalize paths for consistent access', () =&gt; {
+    const cache = createFileStateCacheWithSizeLimit(10)
+    cache.set('/a/b/../c/file.ts', { content: 'test', timestamp: 1, offset: undefined, limit: undefined })
+
+    // 归一化路径应命中同一条目
+    expect(cache.get('/a/c/file.ts')).toBeDefined()
+    expect(cache.get('/a/c/file.ts')!.content).toBe('test')
+  })
+
+  it('should evict by size before reaching max entries', () =&gt; {
+    // 1MB 大小限制，100 条目限制
+    const cache = createFileStateCacheWithSizeLimit(100, 1024 * 1024)
+
+    // 写入超过大小限制的内容
+    for (let i = 0; i &lt; 50; i++) {
+      cache.set(`/file${i}.ts`, {
+        content: 'x'.repeat(100 * 1024), // 100KB each
+        timestamp: i,
+        offset: undefined,
+        limit: undefined,
+      })
+    }
+
+    // 由于大小限制，不会保留全部 50 个
+    expect(cache.size).toBeLessThan(50)
+  })
+})
+</code></pre>
+<h2 id="224-测试文化与实践"><a class="header" href="#224-测试文化与实践">22.4 测试文化与实践</a></h2>
+<h3 id="2241-测试命名规范"><a class="header" href="#2241-测试命名规范">22.4.1 测试命名规范</a></h3>
+<p>从代码注释中可以看到测试的命名传统：</p>
+<pre><code class="language-typescript">// @internal Exported for testing - use loadConversationForResume instead
+export function deserializeMessages(serializedMessages: Message[]): Message[] { ... }
+</code></pre>
+<p>内部函数如果需要测试，会标记为 <code>@internal Exported for testing</code>，并注明正常调用方应使用的公共接口。</p>
+<h3 id="2242-数据驱动的测试决策"><a class="header" href="#2242-数据驱动的测试决策">22.4.2 数据驱动的测试决策</a></h3>
+<p>代码中频繁出现的 BQ（BigQuery）数据引用说明团队使用生产数据指导测试优先级：</p>
+<pre><code class="language-typescript">// BQ 2026-03-10: 1,279 sessions had 50+ consecutive failures
+// → 引出了断路器测试
+
+// BQ 2026-03-01: missing this made 20% of tengu_prompt_cache_break events false positives
+// → 引出了压缩后缓存基线重置的测试
+</code></pre>
+<h3 id="2243-防回归测试"><a class="header" href="#2243-防回归测试">22.4.3 防回归测试</a></h3>
+<p>一些测试直接针对历史 Bug：</p>
+<pre><code class="language-typescript">// 测试 drift assertion: microCompact 中内联的常量字符串
+// 必须与源文件保持一致
+it('TIME_BASED_MC_CLEARED_MESSAGE must match toolResultStorage.ts', () =&gt; {
+  // Drift is caught by a test asserting equality with the source-of-truth.
+})
+</code></pre>
+<p>这种“常量一致性“测试防止了跨文件复制的字符串出现漂移。</p>
+<h2 id="225-harness-engineering--ai-agent-的质量保证方法论"><a class="header" href="#225-harness-engineering--ai-agent-的质量保证方法论">22.5 Harness Engineering —— AI Agent 的质量保证方法论</a></h2>
+<h3 id="2251-什么是-harness-engineering"><a class="header" href="#2251-什么是-harness-engineering">22.5.1 什么是 Harness Engineering</a></h3>
+<p>Harness Engineering 是为 AI Agent 系统构建专用测试基础设施的工程实践。与传统软件测试不同，AI Agent 的核心行为依赖非确定性的模型输出，传统的“输入 → 断言精确输出“模式不再适用。Claude Code 的 Harness Engineering 包含三个支柱：</p>
+<pre><code class="language-mermaid">graph TD
+    HE[Harness Engineering] --&gt; Infra[测试基础设施]
+    HE --&gt; Strategy[分层测试策略]
+    HE --&gt; Safety[安全回归防线]
+
+    Infra --&gt; TF[测试工厂函数&lt;br/&gt;createTestUserMessage 等]
+    Infra --&gt; TP[TestingPermissionTool&lt;br/&gt;权限测试夹具]
+    Infra --&gt; MC[模拟 Context&lt;br/&gt;ToolUseContext 构建器]
+
+    Strategy --&gt; Det[确定性层: 精确断言]
+    Strategy --&gt; Semi[半确定性层: 结构验证]
+    Strategy --&gt; NonDet[非确定性层: 行为特征]
+
+    Safety --&gt; Classifier[分类器回归测试&lt;br/&gt;200+ 命令用例]
+    Safety --&gt; Drift[常量漂移检测]
+    Safety --&gt; BQ[BQ 数据驱动]
+</code></pre>
+<h3 id="2252-testingpermissiontool--权限测试的专用夹具"><a class="header" href="#2252-testingpermissiontool--权限测试的专用夹具">22.5.2 TestingPermissionTool —— 权限测试的专用夹具</a></h3>
+<p><code>TestingPermissionTool</code> 是一个仅在测试环境中启用的工具，它的唯一目的是验证权限系统的端到端行为：</p>
+<pre><code class="language-typescript">// src/tools/testing/TestingPermissionTool.tsx
+export const TestingPermissionTool: Tool&lt;InputSchema, string&gt; = buildTool({
+  name: 'TestingPermission',
+  isEnabled() {
+    return process.env.NODE_ENV === 'test'  // 仅测试环境
+  },
+  isConcurrencySafe() { return true },
+  isReadOnly() { return true },
+  async checkPermissions() {
+    return {
+      behavior: 'ask' as const,   // 始终触发权限对话框
+      message: 'Run test?',
+    }
+  },
+  async call() {
+    return { data: 'TestingPermission executed successfully' }
+  },
+})
+</code></pre>
+<p>注册机制同样受环境门控：</p>
+<pre><code class="language-typescript">// src/tools.ts
+...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
+</code></pre>
+<p>这个工具的设计体现了 Harness Engineering 的核心理念：<strong>为测试创建专用的可控组件，而非在生产代码中注入测试逻辑</strong>。TestingPermissionTool 的 <code>checkPermissions</code> 始终返回 <code>ask</code>，使得 E2E 测试可以稳定地验证权限对话框的显示、用户确认和拒绝流程。</p>
+<h3 id="2253-安全分类器的回归测试"><a class="header" href="#2253-安全分类器的回归测试">22.5.3 安全分类器的回归测试</a></h3>
+<p>Bash 安全分类器是 Claude Code 最关键的安全组件，其回归测试覆盖了数百个命令用例：</p>
+<pre><code class="language-typescript">// 分类器回归测试的结构
+describe('Bash security classifier', () =&gt; {
+  // 明确安全的命令
+  const SAFE_COMMANDS = [
+    'ls -la', 'cat README.md', 'git status', 'node --version',
+    'echo hello', 'pwd', 'which node', 'head -n 10 file.txt',
+  ]
+
+  // 明确危险的命令
+  const DANGEROUS_COMMANDS = [
+    'rm -rf /', 'rm -rf ~', 'dd if=/dev/zero of=/dev/sda',
+    'chmod -R 777 /', 'mkfs.ext4 /dev/sda',
+    ':(){ :|:&amp; };:',  // fork bomb
+  ]
+
+  // 需要确认但非危险的命令
+  const NEEDS_CONFIRMATION = [
+    'pip install requests', 'npm install -g',
+    'curl https://example.com | bash',
+    'docker rm $(docker ps -aq)',
+  ]
+
+  // 绕过检测（Zsh 特有）
+  const ZSH_BYPASS_ATTEMPTS = [
+    '=rm -rf /',           // Zsh equals expansion
+    "echo 'safe'$(rm -rf /)",  // 命令替换注入
+  ]
+
+  for (const cmd of SAFE_COMMANDS) {
+    it(`should allow: ${cmd}`, () =&gt; {
+      expect(classifyCommand(cmd).behavior).toBe('allow')
+    })
+  }
+
+  for (const cmd of DANGEROUS_COMMANDS) {
+    it(`should deny: ${cmd}`, () =&gt; {
+      expect(classifyCommand(cmd).behavior).toBe('deny')
+    })
+  }
+})
+</code></pre>
+<p>这种“正例 + 反例 + 绕过尝试“的测试矩阵确保了分类器在安全关键场景下的可靠性。每当生产环境发现新的绕过方式，都会立即添加对应的回归用例。</p>
+<h3 id="2254-常量漂移检测drift-detection"><a class="header" href="#2254-常量漂移检测drift-detection">22.5.4 常量漂移检测（Drift Detection）</a></h3>
+<p>跨文件复制的常量容易出现漂移。Claude Code 使用断言测试来防止这种问题（参见第 9 章 ContentReplacementState 的 TIME_BASED_MC_CLEARED_MESSAGE）：</p>
+<pre><code class="language-typescript">// 测试内联常量与源文件保持一致
+it('inlined constant must match source of truth', () =&gt; {
+  const inlined = require('../services/compact/microCompact.js')
+    .TIME_BASED_MC_CLEARED_MESSAGE
+  const sourceOfTruth = require('../utils/toolResultStorage.js')
+    .TIME_BASED_MC_CLEARED_MESSAGE
+  expect(inlined).toBe(sourceOfTruth)
+})
+</code></pre>
+<p>这是一种“编译器做不到的验证“ —— TypeScript 无法检测两个不同文件中的字符串常量是否保持同步，但测试可以。</p>
+<h3 id="2255-可复现的-agent-测试模式"><a class="header" href="#2255-可复现的-agent-测试模式">22.5.5 可复现的 Agent 测试模式</a></h3>
+<p>测试 Agent 行为时，Claude Code 采用“固定输入 + 结构断言“模式：</p>
+<pre><code class="language-typescript">// 不断言精确的模型输出
+// BAD: expect(response.text).toBe('I will read the file for you')
+
+// 断言行为结构
+// GOOD: expect(response.toolCalls).toContainEqual(
+//   expect.objectContaining({ name: 'Read', input: { file_path: '/test' } })
+// )
+</code></pre>
+<p>对于需要更强确定性的场景，测试通过 Mock API 注入固定的 Assistant 响应，绕过模型的非确定性：</p>
+<pre><code class="language-typescript">const mockApiResponse = createAssistantMessage({
+  content: [
+    { type: 'tool_use', id: 'tu_1', name: 'Read',
+      input: { file_path: '/tmp/test.txt' } },
+  ],
+})
+// 注入 mock → 验证工具执行流程 → 断言结果
+</code></pre>
+<h2 id="226-端到端测试考量"><a class="header" href="#226-端到端测试考量">22.6 端到端测试考量</a></h2>
+<h3 id="2251-成本与覆盖率的平衡"><a class="header" href="#2251-成本与覆盖率的平衡">22.5.1 成本与覆盖率的平衡</a></h3>
+<p>端到端测试需要真实的 API 调用，每次测试都产生成本。Claude Code 的策略是：</p>
+<ol>
+<li>单元测试覆盖所有确定性逻辑</li>
+<li>集成测试使用模拟 API 响应覆盖交互逻辑</li>
+<li>端到端测试仅覆盖关键用户路径（启动、查询、压缩、恢复）</li>
+<li>回归测试仅在发现 Bug 后添加端到端用例</li>
+</ol>
+<h3 id="2252-快照测试"><a class="header" href="#2252-快照测试">22.5.2 快照测试</a></h3>
+<p>组件渲染使用快照测试验证 UI 不发生意外变化。终端渲染的快照是 ANSI 字符串，比 HTML 快照更紧凑。</p>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>Claude Code 的测试策略体现了一个核心原则：<strong>在确定性层面追求完美覆盖，在非确定性层面追求结构验证</strong>。通过将系统分层为确定性/半确定性/非确定性三个层面，团队能够为每个层面选择最适合的测试方法。</p>
+<p>数据驱动的测试决策（基于 BQ 生产数据）和防回归测试（基于历史 Bug）确保了测试投资的回报最大化。这不是为了测试覆盖率的数字好看，而是为了系统的实际可靠性。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part9-engineering/ch21-performance.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part9-engineering/ch23-build-system.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part9-engineering/ch21-performance.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part9-engineering/ch23-build-system.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

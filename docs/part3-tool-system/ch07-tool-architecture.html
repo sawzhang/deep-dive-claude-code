@@ -1,0 +1,779 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 7 章：工具架构 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part3-tool-system/ch07-tool-architecture.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-7-章工具架构"><a class="header" href="#第-7-章工具架构">第 7 章：工具架构</a></h1>
+<blockquote>
+<p>“好的架构允许重大决策推迟到最后一刻。” —— Robert C. Martin</p>
+</blockquote>
+<p>Claude Code 的工具系统是整个交互循环中最关键的子系统。当模型决定调用一个工具时，控制权从 LLM 推理侧转移到宿主程序侧——文件被读写、命令被执行、网页被抓取。工具系统的设计直接决定了 Claude Code 的能力边界与安全底线。</p>
+<p>本章将深入剖析工具系统的类型契约、工厂模式、依赖注入、注册发现和延迟加载五个层面，展示这套架构如何在保持极高可扩展性的同时实现“失败关闭“（fail-closed）的安全默认。</p>
+<h2 id="71-tool-接口契约"><a class="header" href="#71-tool-接口契约">7.1 Tool 接口契约</a></h2>
+<h3 id="711-接口全貌"><a class="header" href="#711-接口全貌">7.1.1 接口全貌</a></h3>
+<p>Claude Code 的工具接口定义在 <code>src/Tool.ts</code> 中，是一个参数化的 TypeScript 泛型类型。该接口包含超过 30 个方法和属性，覆盖了工具生命周期的每一个阶段：输入验证、权限检查、执行、结果序列化和 UI 渲染。</p>
+<pre><code class="language-typescript">// src/Tool.ts（简化展示核心签名）
+export type Tool&lt;
+  Input extends AnyObject = AnyObject,
+  Output = unknown,
+  P extends ToolProgressData = ToolProgressData,
+&gt; = {
+  readonly name: string
+  aliases?: string[]
+  searchHint?: string
+  readonly inputSchema: Input
+  readonly inputJSONSchema?: ToolInputJSONSchema
+  outputSchema?: z.ZodType&lt;unknown&gt;
+  maxResultSizeChars: number
+  readonly shouldDefer?: boolean
+  readonly alwaysLoad?: boolean
+  readonly strict?: boolean
+  isMcp?: boolean
+  isLsp?: boolean
+  mcpInfo?: { serverName: string; toolName: string }
+
+  // 生命周期方法
+  call(args, context, canUseTool, parentMessage, onProgress?): Promise&lt;ToolResult&lt;Output&gt;&gt;
+  description(input, options): Promise&lt;string&gt;
+  prompt(options): Promise&lt;string&gt;
+  validateInput?(input, context): Promise&lt;ValidationResult&gt;
+  checkPermissions(input, context): Promise&lt;PermissionResult&gt;
+
+  // 分类属性
+  isConcurrencySafe(input): boolean
+  isEnabled(): boolean
+  isReadOnly(input): boolean
+  isDestructive?(input): boolean
+  interruptBehavior?(): 'cancel' | 'block'
+  isSearchOrReadCommand?(input): { isSearch: boolean; isRead: boolean; isList?: boolean }
+  isOpenWorld?(input): boolean
+  requiresUserInteraction?(): boolean
+
+  // 路径与权限
+  getPath?(input): string
+  preparePermissionMatcher?(input): Promise&lt;(pattern: string) =&gt; boolean&gt;
+  backfillObservableInput?(input: Record&lt;string, unknown&gt;): void
+
+  // UI 渲染（10+ 方法）
+  userFacingName(input): string
+  renderToolUseMessage(input, options): React.ReactNode
+  renderToolResultMessage?(content, progressMessages, options): React.ReactNode
+  renderToolUseProgressMessage?(progressMessages, options): React.ReactNode
+  // ... 更多渲染方法
+
+  // 序列化与分类器
+  toAutoClassifierInput(input): unknown
+  mapToolResultToToolResultBlockParam(content, toolUseID): ToolResultBlockParam
+  inputsEquivalent?(a, b): boolean
+}
+</code></pre>
+<p>这个接口的设计哲学体现了几个核心原则：</p>
+<p><strong>原则一：输入驱动的属性推断。</strong> 注意 <code>isConcurrencySafe</code>、<code>isReadOnly</code>、<code>isDestructive</code> 等方法都接收 <code>input</code> 参数。这意味着同一个工具可以根据不同输入表现出不同的安全特征。例如，<code>BashTool</code> 执行 <code>ls</code> 时是只读且并发安全的，但执行 <code>rm -rf /</code> 时是破坏性的。</p>
+<p><strong>原则二：渲染与逻辑分离。</strong> 接口中 UI 渲染方法占了近半数，包括 <code>renderToolUseMessage</code>、<code>renderToolResultMessage</code>、<code>renderToolUseProgressMessage</code>、<code>renderToolUseRejectedMessage</code>、<code>renderToolUseErrorMessage</code> 和 <code>renderGroupedToolUse</code> 等。每个工具完全掌控自己在终端中的呈现方式，这与 React 的组件化思想一脉相承。</p>
+<p><strong>原则三：渐进式增强。</strong> 大量方法标记为可选（<code>?</code>），工具可以只实现核心方法，让框架提供合理默认值。</p>
+<h3 id="712-核心方法详解"><a class="header" href="#712-核心方法详解">7.1.2 核心方法详解</a></h3>
+<h4 id="call--工具执行入口"><a class="header" href="#call--工具执行入口">call —— 工具执行入口</a></h4>
+<pre><code class="language-typescript">call(
+  args: z.infer&lt;Input&gt;,
+  context: ToolUseContext,
+  canUseTool: CanUseToolFn,
+  parentMessage: AssistantMessage,
+  onProgress?: ToolCallProgress&lt;P&gt;,
+): Promise&lt;ToolResult&lt;Output&gt;&gt;
+</code></pre>
+<p><code>call</code> 是工具的核心执行方法。注意其返回类型 <code>ToolResult&lt;Output&gt;</code>：</p>
+<pre><code class="language-typescript">export type ToolResult&lt;T&gt; = {
+  data: T
+  newMessages?: (UserMessage | AssistantMessage | AttachmentMessage | SystemMessage)[]
+  contextModifier?: (context: ToolUseContext) =&gt; ToolUseContext
+  mcpMeta?: { _meta?: Record&lt;string, unknown&gt;; structuredContent?: Record&lt;string, unknown&gt; }
+}
+</code></pre>
+<p><code>ToolResult</code> 不仅包含工具输出数据，还可以携带新的消息（注入到对话历史中）和上下文修改器。这个 <code>contextModifier</code> 是一个精妙的设计——它允许非并发工具在执行后修改后续工具的执行环境。例如，一个切换目录的命令可以通过 <code>contextModifier</code> 更新后续工具看到的工作目录。</p>
+<h4 id="checkpermissions--权限闸门"><a class="header" href="#checkpermissions--权限闸门">checkPermissions —— 权限闸门</a></h4>
+<pre><code class="language-typescript">checkPermissions(
+  input: z.infer&lt;Input&gt;,
+  context: ToolUseContext,
+): Promise&lt;PermissionResult&gt;
+</code></pre>
+<p>每个工具可以定义自己的权限检查逻辑。<code>PermissionResult</code> 的行为有三种：<code>allow</code>（允许执行）、<code>deny</code>（拒绝并告知原因）、<code>ask</code>（弹出交互式权限确认对话框）。这个方法只包含工具特有的逻辑，通用权限检查（如基于规则的匹配）在 <code>permissions.ts</code> 中处理。</p>
+<h4 id="isconcurrencysafe--并发安全标记"><a class="header" href="#isconcurrencysafe--并发安全标记">isConcurrencySafe —— 并发安全标记</a></h4>
+<pre><code class="language-typescript">isConcurrencySafe(input: z.infer&lt;Input&gt;): boolean
+</code></pre>
+<p>这个方法的返回值直接控制 <code>StreamingToolExecutor</code> 的调度策略。返回 <code>true</code> 的工具可以与其他并发安全工具并行执行；返回 <code>false</code> 的工具会独占执行槽位。稍后在第 9 章将详细分析调度器的工作原理。</p>
+<h4 id="isdestructive--破坏性标记"><a class="header" href="#isdestructive--破坏性标记">isDestructive —— 破坏性标记</a></h4>
+<pre><code class="language-typescript">isDestructive?(input: z.infer&lt;Input&gt;): boolean
+</code></pre>
+<p>注释说得很明确：<em>“Only set when the tool performs irreversible operations (delete, overwrite, send).”</em> 这个标记影响安全分类器的判断和 UI 的警告提示。</p>
+<h3 id="713-接口-uml-类图"><a class="header" href="#713-接口-uml-类图">7.1.3 接口 UML 类图</a></h3>
+<pre><code class="language-mermaid">classDiagram
+    class Tool~Input, Output, P~ {
+        &lt;&lt;interface&gt;&gt;
+        +name: string
+        +aliases?: string[]
+        +searchHint?: string
+        +inputSchema: Input
+        +inputJSONSchema?: ToolInputJSONSchema
+        +outputSchema?: ZodType
+        +maxResultSizeChars: number
+        +shouldDefer?: boolean
+        +alwaysLoad?: boolean
+        +strict?: boolean
+        +isMcp?: boolean
+        +mcpInfo?: McpInfo
+        +call(args, context, canUseTool, parentMsg, onProgress?) ToolResult~Output~
+        +description(input, options) string
+        +prompt(options) string
+        +validateInput?(input, context) ValidationResult
+        +checkPermissions(input, context) PermissionResult
+        +isConcurrencySafe(input) boolean
+        +isEnabled() boolean
+        +isReadOnly(input) boolean
+        +isDestructive?(input) boolean
+        +interruptBehavior?() cancel|block
+        +isSearchOrReadCommand?(input) SearchReadResult
+        +getPath?(input) string
+        +preparePermissionMatcher?(input) MatcherFn
+        +backfillObservableInput?(input) void
+        +toAutoClassifierInput(input) unknown
+        +userFacingName(input) string
+        +mapToolResultToToolResultBlockParam(content, id) ToolResultBlockParam
+        +renderToolUseMessage(input, options) ReactNode
+        +renderToolResultMessage?(content, progress, options) ReactNode
+        +renderToolUseProgressMessage?(progress, options) ReactNode
+        +renderToolUseRejectedMessage?(input, options) ReactNode
+        +renderToolUseErrorMessage?(result, options) ReactNode
+        +renderGroupedToolUse?(toolUses, options) ReactNode
+    }
+
+    class ToolResult~T~ {
+        +data: T
+        +newMessages?: Message[]
+        +contextModifier?: ContextModifierFn
+        +mcpMeta?: McpMeta
+    }
+
+    class ToolDef~Input, Output, P~ {
+        &lt;&lt;type&gt;&gt;
+        Omit Tool without DefaultableKeys
+        + Partial DefaultableKeys
+    }
+
+    class BuiltTool~D~ {
+        &lt;&lt;type&gt;&gt;
+        Omit D without DefaultableKeys
+        + Required DefaultableKeys
+    }
+
+    Tool --&gt; ToolResult : returns
+    ToolDef --|&gt; Tool : buildTool fills defaults
+    BuiltTool --|&gt; Tool : concrete tool type
+</code></pre>
+<h2 id="72-buildtool-工厂--失败关闭的默认值设计"><a class="header" href="#72-buildtool-工厂--失败关闭的默认值设计">7.2 buildTool 工厂 —— 失败关闭的默认值设计</a></h2>
+<h3 id="721-设计动机"><a class="header" href="#721-设计动机">7.2.1 设计动机</a></h3>
+<p>Claude Code 拥有 40+ 个内置工具，如果每个工具都必须实现 Tool 接口的全部 30+ 方法，代码将充斥着重复的样板。更危险的是，如果开发者忘记实现某个安全相关的方法，可能会留下安全漏洞。</p>
+<p><code>buildTool</code> 工厂函数的设计目标是：<strong>让安全默认值自动生效，让开发者显式选择放宽。</strong></p>
+<h3 id="722-tool_defaults--失败关闭的守卫"><a class="header" href="#722-tool_defaults--失败关闭的守卫">7.2.2 TOOL_DEFAULTS —— 失败关闭的守卫</a></h3>
+<pre><code class="language-typescript">// src/Tool.ts
+const TOOL_DEFAULTS = {
+  isEnabled: () =&gt; true,
+  isConcurrencySafe: (_input?: unknown) =&gt; false,    // 假定不安全
+  isReadOnly: (_input?: unknown) =&gt; false,            // 假定会写入
+  isDestructive: (_input?: unknown) =&gt; false,
+  checkPermissions: (input, _ctx?) =&gt;
+    Promise.resolve({ behavior: 'allow', updatedInput: input }),
+  toAutoClassifierInput: (_input?: unknown) =&gt; '',
+  userFacingName: (_input?: unknown) =&gt; '',
+}
+</code></pre>
+<p>这段代码的关键设计决策值得逐一分析：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>默认值</th><th>值</th><th>安全含义</th></tr>
+</thead>
+<tbody>
+<tr><td><code>isConcurrencySafe</code></td><td><code>false</code></td><td>新工具默认独占执行，不会与其他工具并发运行。这避免了潜在的竞态条件。</td></tr>
+<tr><td><code>isReadOnly</code></td><td><code>false</code></td><td>新工具默认被视为有写操作。这确保权限系统不会错误地跳过写入检查。</td></tr>
+<tr><td><code>isDestructive</code></td><td><code>false</code></td><td>这个看似违反“失败关闭“原则——新工具不会被标记为破坏性的。但这里的权衡是：将所有工具默认标记为破坏性会导致过多的用户确认弹窗，反而降低用户体验且造成“告警疲劳“。</td></tr>
+<tr><td><code>checkPermissions</code></td><td><code>allow</code></td><td>默认允许——工具级权限检查延迟到通用权限系统（<code>permissions.ts</code>）。这避免了工具漏实现 <code>checkPermissions</code> 就完全无法使用的问题。</td></tr>
+<tr><td><code>toAutoClassifierInput</code></td><td><code>''</code>（空字符串）</td><td>空字符串意味着该工具从安全分类器的视角被跳过。源码注释明确指出：<em>“skip classifier —— security-relevant tools must override”</em>。</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="723-buildtool-实现"><a class="header" href="#723-buildtool-实现">7.2.3 buildTool 实现</a></h3>
+<pre><code class="language-typescript">// src/Tool.ts
+export function buildTool&lt;D extends AnyToolDef&gt;(def: D): BuiltTool&lt;D&gt; {
+  return {
+    ...TOOL_DEFAULTS,
+    userFacingName: () =&gt; def.name,
+    ...def,
+  } as BuiltTool&lt;D&gt;
+}
+</code></pre>
+<p>实现极为简洁——利用 JavaScript 对象展开的后值覆盖特性，工具定义中显式提供的方法会覆盖默认值。类型系统通过 <code>BuiltTool&lt;D&gt;</code> 保证结果始终是一个完整的 <code>Tool</code>。</p>
+<h3 id="724-defaultabletoolkeys--可省略的方法集"><a class="header" href="#724-defaultabletoolkeys--可省略的方法集">7.2.4 DefaultableToolKeys —— 可省略的方法集</a></h3>
+<pre><code class="language-typescript">type DefaultableToolKeys =
+  | 'isEnabled'
+  | 'isConcurrencySafe'
+  | 'isReadOnly'
+  | 'isDestructive'
+  | 'checkPermissions'
+  | 'toAutoClassifierInput'
+  | 'userFacingName'
+</code></pre>
+<p>只有这 7 个方法被列为可省略。其他方法（如 <code>call</code>、<code>inputSchema</code>、<code>prompt</code>）是每个工具必须实现的——编译器会强制要求。</p>
+<pre><code class="language-mermaid">graph TD
+    A[开发者定义 ToolDef] --&gt;|省略 isConcurrencySafe| B[buildTool 工厂]
+    A --&gt;|省略 isReadOnly| B
+    A --&gt;|省略 checkPermissions| B
+    B --&gt;|注入 TOOL_DEFAULTS| C[完整的 Tool 对象]
+    C --&gt;|isConcurrencySafe = false| D[调度器独占执行]
+    C --&gt;|isReadOnly = false| E[权限系统检查写入]
+    C --&gt;|checkPermissions = allow| F[交由通用权限系统]
+
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style D fill:#fbb,stroke:#333
+    style E fill:#fbb,stroke:#333
+</code></pre>
+<h2 id="73-toolusecontext--依赖注入的核心载体"><a class="header" href="#73-toolusecontext--依赖注入的核心载体">7.3 ToolUseContext —— 依赖注入的核心载体</a></h2>
+<h3 id="731-context-的角色"><a class="header" href="#731-context-的角色">7.3.1 Context 的角色</a></h3>
+<p>在传统的面向对象设计中，工具可能是一个类实例，通过构造器注入依赖。Claude Code 选择了函数式的方式——每个工具的 <code>call</code> 方法接收一个 <code>ToolUseContext</code> 对象，其中包含了工具执行所需的全部上下文。</p>
+<p><code>ToolUseContext</code> 定义在 <code>src/Tool.ts</code> 中，是一个拥有 40+ 字段的大型结构体。这看似违反了“接口隔离原则“，但在 AI 编码工具的特殊场景下，这种设计有其合理性：工具需要的上下文是动态变化的（每次 API 调用可能有不同的配置），且工具之间共享大量上下文（如 MCP 客户端、权限配置、消息历史）。</p>
+<h3 id="732-context-的核心字段分组"><a class="header" href="#732-context-的核心字段分组">7.3.2 Context 的核心字段分组</a></h3>
+<p>将 40+ 个字段按功能分组，可以看到清晰的层次结构：</p>
+<p><strong>配置层（options）：</strong></p>
+<pre><code class="language-typescript">options: {
+  commands: Command[]           // 可用斜杠命令
+  debug: boolean                // 调试模式
+  mainLoopModel: string         // 当前模型名称
+  tools: Tools                  // 可用工具列表
+  verbose: boolean              // 详细输出
+  thinkingConfig: ThinkingConfig // 思考配置
+  mcpClients: MCPServerConnection[] // MCP 服务器连接
+  mcpResources: Record&lt;string, ServerResource[]&gt;
+  isNonInteractiveSession: boolean  // 非交互模式（SDK/CI）
+  agentDefinitions: AgentDefinitionsResult
+  maxBudgetUsd?: number         // 成本预算上限
+  customSystemPrompt?: string   // 自定义系统提示
+  appendSystemPrompt?: string   // 追加系统提示
+  refreshTools?: () =&gt; Tools    // 动态刷新工具列表
+}
+</code></pre>
+<p><strong>状态管理层：</strong></p>
+<pre><code class="language-typescript">abortController: AbortController           // 取消信号
+readFileState: FileStateCache              // 文件读取缓存
+getAppState(): AppState                     // 获取全局状态
+setAppState(f: (prev) =&gt; AppState): void   // 更新全局状态
+setAppStateForTasks?: (f) =&gt; void          // 任务级状态更新（穿透子代理）
+messages: Message[]                         // 对话消息历史
+</code></pre>
+<p><strong>UI 交互层：</strong></p>
+<pre><code class="language-typescript">setToolJSX?: SetToolJSXFn           // 自定义 JSX 渲染
+addNotification?: (notif) =&gt; void    // 推送通知
+appendSystemMessage?: (msg) =&gt; void  // 追加系统消息
+sendOSNotification?: (opts) =&gt; void  // 系统级通知
+setInProgressToolUseIDs: (f) =&gt; void // 标记进行中的工具
+setHasInterruptibleToolInProgress?: (v) =&gt; void
+setStreamMode?: (mode) =&gt; void       // 设置 spinner 模式
+openMessageSelector?: () =&gt; void     // 打开消息选择器
+</code></pre>
+<p><strong>跟踪与遥测层：</strong></p>
+<pre><code class="language-typescript">setResponseLength: (f) =&gt; void      // 响应长度统计
+pushApiMetricsEntry?: (ttftMs) =&gt; void // API 指标
+updateFileHistoryState: (updater) =&gt; void
+updateAttributionState: (updater) =&gt; void
+queryTracking?: QueryChainTracking   // 查询链跟踪
+toolDecisions?: Map&lt;string, {...}&gt;   // 工具决策记录
+</code></pre>
+<p><strong>子代理相关：</strong></p>
+<pre><code class="language-typescript">agentId?: AgentId            // 子代理 ID
+agentType?: string           // 子代理类型
+requireCanUseTool?: boolean  // 强制权限检查（推测执行用）
+renderedSystemPrompt?: SystemPrompt // 父代理冻结的系统提示
+localDenialTracking?: DenialTrackingState // 本地拒绝追踪
+</code></pre>
+<p><strong>内容管理层：</strong></p>
+<pre><code class="language-typescript">contentReplacementState?: ContentReplacementState  // 工具结果替换预算
+fileReadingLimits?: { maxTokens?; maxSizeBytes? }  // 文件读取限制
+globLimits?: { maxResults? }                        // Glob 结果限制
+</code></pre>
+<h3 id="733-setappstate-与-setappstatefortasks-的分裂"><a class="header" href="#733-setappstate-与-setappstatefortasks-的分裂">7.3.3 setAppState 与 setAppStateForTasks 的分裂</a></h3>
+<p><code>ToolUseContext</code> 中有一个耐人寻味的设计——两个状态更新函数：</p>
+<pre><code class="language-typescript">setAppState(f: (prev: AppState) =&gt; AppState): void
+setAppStateForTasks?: (f: (prev: AppState) =&gt; AppState) =&gt; void
+</code></pre>
+<p>注释解释了原因：</p>
+<blockquote>
+<p><em>“Always-shared setAppState for session-scoped infrastructure (background tasks, session hooks). Unlike setAppState, which is no-op for async agents (see createSubagentContext), this always reaches the root store so agents at any nesting depth can register/clean up infrastructure that outlives a single turn.”</em></p>
+</blockquote>
+<p>这是因为 Claude Code 支持多层嵌套的子代理（Agent 调用 Agent），每一层子代理有自己的 <code>ToolUseContext</code>。对于普通的状态更新，子代理的修改不应该泄漏到父代理；但对于全局基础设施（如后台任务注册），子代理必须能够穿透到根存储。这种双通道设计精确地解决了这个矛盾。</p>
+<h3 id="734-context-传递的数据流"><a class="header" href="#734-context-传递的数据流">7.3.4 Context 传递的数据流</a></h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant REPL as REPL.tsx
+    participant Query as query.ts
+    participant STE as StreamingToolExecutor
+    participant TE as toolExecution.ts
+    participant Tool as 具体工具
+
+    REPL-&gt;&gt;Query: 创建初始 ToolUseContext
+    Note right of REPL: options, abortController,&lt;br/&gt;messages, setAppState...
+    Query-&gt;&gt;STE: new StreamingToolExecutor(tools, canUseTool, context)
+    STE-&gt;&gt;STE: addTool(block, assistantMessage)
+    STE-&gt;&gt;TE: runToolUse(block, assistantMessage, canUseTool, context)
+    TE-&gt;&gt;TE: 校验输入(zod safeParse)
+    TE-&gt;&gt;TE: runPreToolUseHooks
+    TE-&gt;&gt;TE: resolveHookPermissionDecision
+    TE-&gt;&gt;Tool: tool.call(input, context, canUseTool, msg, onProgress)
+    Tool--&gt;&gt;TE: ToolResult { data, newMessages?, contextModifier? }
+    TE-&gt;&gt;TE: runPostToolUseHooks
+    TE-&gt;&gt;TE: processToolResultBlock(截断/持久化)
+    TE--&gt;&gt;STE: yield MessageUpdate
+    STE-&gt;&gt;STE: 应用 contextModifier
+    STE--&gt;&gt;Query: yield 结果消息
+</code></pre>
+<h2 id="74-工具注册与发现--getallbasetools-函数的工具组装"><a class="header" href="#74-工具注册与发现--getallbasetools-函数的工具组装">7.4 工具注册与发现 —— getAllBaseTools 函数的工具组装</a></h2>
+<h3 id="741-工具注册表"><a class="header" href="#741-工具注册表">7.4.1 工具注册表</a></h3>
+<p>Claude Code 没有使用装饰器模式或服务定位器模式来注册工具，而是采用了最直接的方式——在 <code>src/tools.ts</code> 中用一个函数显式列出所有工具：</p>
+<pre><code class="language-typescript">// src/tools.ts
+export function getAllBaseTools(): Tools {
+  return [
+    AgentTool,
+    TaskOutputTool,
+    BashTool,
+    ...(hasEmbeddedSearchTools() ? [] : [GlobTool, GrepTool]),
+    ExitPlanModeV2Tool,
+    FileReadTool,
+    FileEditTool,
+    FileWriteTool,
+    NotebookEditTool,
+    WebFetchTool,
+    TodoWriteTool,
+    WebSearchTool,
+    TaskStopTool,
+    AskUserQuestionTool,
+    SkillTool,
+    EnterPlanModeTool,
+    ...(isTodoV2Enabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
+    ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
+    ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
+    // ... 更多条件工具
+  ]
+}
+</code></pre>
+<p>这种设计有几个重要特点：</p>
+<p><strong>条件编译（Dead Code Elimination）。</strong> 许多工具使用 <code>feature()</code> 标记进行条件加载：</p>
+<pre><code class="language-typescript">const REPLTool = process.env.USER_TYPE === 'ant'
+  ? require('./tools/REPLTool/REPLTool.js').REPLTool
+  : null
+
+const SleepTool = feature('PROACTIVE') || feature('KAIROS')
+  ? require('./tools/SleepTool/SleepTool.js').SleepTool
+  : null
+</code></pre>
+<p>Bun 的打包器会在编译时对 <code>feature()</code> 调用求值，从而将未启用的工具完全从产物中删除。这不仅减少了包大小，还保证了未启用的功能不会泄漏任何代码路径。</p>
+<p><strong>嵌入式搜索工具的去重。</strong> 当内部构建（ant-native）内嵌了 bfs/ugrep 时，GlobTool 和 GrepTool 会被跳过：</p>
+<pre><code class="language-typescript">...(hasEmbeddedSearchTools() ? [] : [GlobTool, GrepTool]),
+</code></pre>
+<p>这是因为内嵌的搜索工具已经被别名到 shell 中的 <code>find</code> 和 <code>grep</code> 命令，GlobTool/GrepTool 就变得多余了。</p>
+<h3 id="742-工具池组装"><a class="header" href="#742-工具池组装">7.4.2 工具池组装</a></h3>
+<p><code>getAllBaseTools</code> 只是原始工具列表。实际交给模型使用的工具列表还要经过多层过滤：</p>
+<pre><code class="language-typescript">export function assembleToolPool(
+  permissionContext: ToolPermissionContext,
+  mcpTools: Tools,
+): Tools {
+  const builtInTools = getTools(permissionContext)         // 过滤后的内置工具
+  const allowedMcpTools = filterToolsByDenyRules(mcpTools, permissionContext)  // 过滤后的 MCP 工具
+
+  // 按名称排序以保证 prompt-cache 稳定性
+  const byName = (a: Tool, b: Tool) =&gt; a.name.localeCompare(b.name)
+  return uniqBy(
+    [...builtInTools].sort(byName).concat(allowedMcpTools.sort(byName)),
+    'name',
+  )
+}
+</code></pre>
+<p>注意这里的缓存稳定性设计：内置工具和 MCP 工具分别排序后拼接，内置工具作为前缀。源码注释解释了原因：</p>
+<blockquote>
+<p><em>“The server’s claude_code_system_cache_policy places a global cache breakpoint after the last prefix-matched built-in tool; a flat sort would interleave MCP tools into built-ins and invalidate all downstream cache keys whenever an MCP tool sorts between existing built-ins.”</em></p>
+</blockquote>
+<p>这意味着 Anthropic 的 API 服务器会在系统提示中内置工具列表之后设置缓存断点。如果 MCP 工具穿插到内置工具之间，就会破坏这个缓存，导致每次 API 调用都需要重新处理整个工具列表。</p>
+<h3 id="743-过滤层次"><a class="header" href="#743-过滤层次">7.4.3 过滤层次</a></h3>
+<pre><code class="language-mermaid">graph TD
+    A[getAllBaseTools&lt;br/&gt;40+ 工具] --&gt;|feature 条件编译| B[条件工具过滤]
+    B --&gt;|isEnabled 检查| C[启用的工具]
+    C --&gt;|filterToolsByDenyRules| D[去除拒绝规则匹配的工具]
+    D --&gt;|REPL 模式过滤| E[隐藏 REPL 包装的原语工具]
+    E --&gt;|SIMPLE 模式过滤| F[仅保留 Bash/Read/Edit]
+    F --&gt;|assembleToolPool| G[合并 MCP 工具]
+    G --&gt;|uniqBy name| H[最终工具集]
+    H --&gt;|按名称排序| I[发送到 API]
+</code></pre>
+<h2 id="75-延迟工具加载--toolsearchtool-如何减少初始-prompt-大小"><a class="header" href="#75-延迟工具加载--toolsearchtool-如何减少初始-prompt-大小">7.5 延迟工具加载 —— ToolSearchTool 如何减少初始 prompt 大小</a></h2>
+<h3 id="751-问题背景"><a class="header" href="#751-问题背景">7.5.1 问题背景</a></h3>
+<p>Claude Code 支持大量工具——内置工具加上用户配置的 MCP 工具，总数很容易超过 50 个。每个工具的完整 JSON Schema 定义都要包含在系统提示中，这会消耗大量的上下文窗口空间。更关键的是，这些 token 会计入每次 API 调用的成本。</p>
+<h3 id="752-延迟加载机制"><a class="header" href="#752-延迟加载机制">7.5.2 延迟加载机制</a></h3>
+<p>ToolSearchTool 实现了一个“按需加载“机制：</p>
+<ol>
+<li><strong>初始加载时</strong>，被标记为 <code>shouldDefer: true</code> 的工具只发送名称，不发送完整 schema</li>
+<li><strong>模型需要时</strong>，调用 <code>ToolSearch</code> 工具搜索并获取完整 schema</li>
+<li><strong>后续调用</strong>，已加载的工具 schema 对模型可见，可直接调用</li>
+</ol>
+<pre><code class="language-typescript">// src/tools/ToolSearchTool/prompt.ts
+export function isDeferredTool(tool: Tool): boolean {
+  // alwaysLoad 优先级最高——永不延迟
+  if (tool.alwaysLoad) return false
+  // MCP 工具始终延迟（工作流特定）
+  if (tool.isMcp) return true
+  // 工具自声明延迟
+  return tool.shouldDefer === true
+}
+</code></pre>
+<p><code>ToolSearchTool</code> 支持三种查询模式：</p>
+<pre><code class="language-typescript">const inputSchema = z.object({
+  query: z.string().describe(
+    'Query to find deferred tools. Use "select:&lt;tool_name&gt;" for direct selection, ' +
+    'or keywords to search.'
+  ),
+  max_results: z.number().optional().default(5),
+})
+</code></pre>
+<ul>
+<li><strong>精确选择</strong>：<code>"select:Read,Edit,Grep"</code> —— 直接按名称获取</li>
+<li><strong>关键词搜索</strong>：<code>"notebook jupyter"</code> —— 模糊匹配</li>
+<li><strong>名称约束搜索</strong>：<code>"+slack send"</code> —— 要求名称包含 “slack”，按其余词排名</li>
+</ul>
+<h3 id="753-schema-缺失检测"><a class="header" href="#753-schema-缺失检测">7.5.3 Schema 缺失检测</a></h3>
+<p>当模型尝试调用一个未加载 schema 的延迟工具时，输入参数往往会格式错误（因为模型没有看到参数定义）。<code>toolExecution.ts</code> 中有专门的检测逻辑：</p>
+<pre><code class="language-typescript">// src/services/tools/toolExecution.ts
+export function buildSchemaNotSentHint(
+  tool: Tool,
+  messages: Message[],
+  tools: readonly { name: string }[],
+): string | null {
+  if (!isToolSearchEnabledOptimistic()) return null
+  if (!isToolSearchToolAvailable(tools)) return null
+  if (!isDeferredTool(tool)) return null
+  const discovered = extractDiscoveredToolNames(messages)
+  if (discovered.has(tool.name)) return null
+  return (
+    `This tool's schema was not sent to the API... ` +
+    `Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${tool.name}"`
+  )
+}
+</code></pre>
+<p>这段代码会追加到 Zod 验证错误信息之后，引导模型先调用 ToolSearch 加载 schema 再重试。</p>
+<h3 id="754-缓存与性能"><a class="header" href="#754-缓存与性能">7.5.4 缓存与性能</a></h3>
+<p>ToolSearchTool 使用 memoized 的工具描述缓存，并在延迟工具集变化时失效：</p>
+<pre><code class="language-typescript">const getToolDescriptionMemoized = memoize(
+  async (toolName: string, tools: Tools): Promise&lt;string&gt; =&gt; {
+    const tool = findToolByName(tools, toolName)
+    if (!tool) return ''
+    return tool.prompt({ /* 最小化参数 */ })
+  },
+  (toolName: string) =&gt; toolName,
+)
+
+function maybeInvalidateCache(deferredTools: Tools): void {
+  const currentKey = getDeferredToolsCacheKey(deferredTools)
+  if (cachedDeferredToolNames !== currentKey) {
+    getToolDescriptionMemoized.cache.clear?.()
+    cachedDeferredToolNames = currentKey
+  }
+}
+</code></pre>
+<h3 id="755-延迟加载的工具分布"><a class="header" href="#755-延迟加载的工具分布">7.5.5 延迟加载的工具分布</a></h3>
+<p>在当前代码库中，以下工具被标记为 <code>shouldDefer: true</code>：</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>工具</th><th>延迟原因</th></tr>
+</thead>
+<tbody>
+<tr><td>WebFetchTool</td><td>非核心操作，使用频率低</td></tr>
+<tr><td>TaskCreateTool</td><td>仅在 TodoV2 启用时有效</td></tr>
+<tr><td>TaskGetTool</td><td>同上</td></tr>
+<tr><td>TaskUpdateTool</td><td>同上</td></tr>
+<tr><td>TaskListTool</td><td>同上</td></tr>
+<tr><td>所有 MCP 工具</td><td>工作流特定，数量不可控</td></tr>
+</tbody>
+</table>
+</div>
+<p>而以下工具通过 <code>alwaysLoad: true</code> 确保从不延迟（即使启用了 ToolSearch）：</p>
+<ul>
+<li>MCP 工具可通过 <code>_meta['anthropic/alwaysLoad']</code> 声明自己不应被延迟</li>
+</ul>
+<pre><code class="language-mermaid">graph LR
+    subgraph 初始加载
+        A[BashTool&lt;br/&gt;完整 schema]
+        B[FileReadTool&lt;br/&gt;完整 schema]
+        C[FileEditTool&lt;br/&gt;完整 schema]
+        D[GlobTool&lt;br/&gt;完整 schema]
+        E[GrepTool&lt;br/&gt;完整 schema]
+        F[ToolSearchTool&lt;br/&gt;完整 schema]
+    end
+
+    subgraph 延迟加载
+        G[WebFetchTool&lt;br/&gt;仅名称]
+        H[TaskCreateTool&lt;br/&gt;仅名称]
+        I[MCP工具1&lt;br/&gt;仅名称]
+        J[MCP工具2&lt;br/&gt;仅名称]
+    end
+
+    F --&gt;|select:WebFetchTool| G
+    F --&gt;|keyword search| H
+    F --&gt;|select:mcp__...| I
+
+    style F fill:#ff9,stroke:#333,stroke-width:2px
+    style G fill:#ddd,stroke:#999
+    style H fill:#ddd,stroke:#999
+    style I fill:#ddd,stroke:#999
+    style J fill:#ddd,stroke:#999
+</code></pre>
+<h2 id="本章小结"><a class="header" href="#本章小结">本章小结</a></h2>
+<p>Claude Code 的工具架构通过以下设计决策构建了一个安全、可扩展、高性能的工具系统：</p>
+<ol>
+<li><strong>泛型接口 + 输入驱动属性</strong> —— 同一工具根据不同输入表现不同的安全特征</li>
+<li><strong>buildTool 工厂 + 失败关闭默认值</strong> —— 新工具自动获得保守的安全配置</li>
+<li><strong>ToolUseContext 依赖注入</strong> —— 40+ 字段的上下文对象承载了工具执行的全部环境</li>
+<li><strong>显式注册 + 条件编译</strong> —— 工具列表在编译时确定，死代码被完全消除</li>
+<li><strong>ToolSearch 延迟加载</strong> —— 按需加载 schema，在工具数量与 prompt 大小之间取得平衡</li>
+</ol>
+<p>下一章将深入到具体工具的实现中，分析 BashTool 如何安全地执行 shell 命令、FileEditTool 如何保证编辑的原子性、以及 GrepTool 如何集成 Ripgrep 提供高速搜索。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part2-core-engine/ch06-streaming.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part3-tool-system/ch08-builtin-tools.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part2-core-engine/ch06-streaming.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part3-tool-system/ch08-builtin-tools.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

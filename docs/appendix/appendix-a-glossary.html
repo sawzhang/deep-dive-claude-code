@@ -1,0 +1,569 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>附录 A：术语表 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/appendix/appendix-a-glossary.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="附录-a术语表"><a class="header" href="#附录-a术语表">附录 A：术语表</a></h1>
+<p>本术语表收录了《深入理解 Claude Code 源码》中出现的关键技术术语，按英文字母顺序排列。每个术语包含英文名、中文译名、一句话定义，以及在本书中首次出现的章节。</p>
+<hr>
+<h2 id="a"><a class="header" href="#a">A</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>AbortController</strong></td><td>中止控制器</td><td>Web API 标准的信号控制器，Claude Code 用于取消正在进行的 API 请求和工具执行，通过 <code>createAbortController</code> 封装支持用户中断和超时传播</td><td>Ch4 查询引擎</td></tr>
+<tr><td><strong>Agent</strong></td><td>智能体</td><td>Claude Code 中可自主执行任务的子系统，通过 Markdown frontmatter 定义，拥有独立的工具集、模型选择和权限模式，经 <code>AgentTool</code> 派生并运行</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><strong>AgentDefinition</strong></td><td>Agent 定义</td><td>描述一个 Agent 的联合类型，分为 <code>BuiltInAgentDefinition</code>、<code>CustomAgentDefinition</code>、<code>PluginAgentDefinition</code> 三种形态，由 <code>loadAgentsDir.ts</code> 从 <code>.claude/agents/</code> 目录解析</td><td>Ch10 Agent 模型</td></tr>
+<tr><td><strong>AppState</strong></td><td>应用状态</td><td>全局状态树对象，包含对话消息列表（<code>messages</code>）、权限上下文、设置、工具执行状态等所有运行时数据，通过 Zustand-like Store 管理</td><td>Ch17 状态管理</td></tr>
+<tr><td><strong>AssistantMessage</strong></td><td>助手消息</td><td><code>Message</code> 联合类型的一个分支，表示 Claude 模型的回复内容，可包含文本块、思考过程（thinking）和工具调用块（<code>tool_use</code>）</td><td>Ch5 消息系统</td></tr>
+<tr><td><strong>AsyncGenerator</strong></td><td>异步生成器</td><td>TypeScript 的 <code>async function*</code> 语法，Claude Code 全栈使用的流式处理范式，支持背压控制、取消传播和 <code>yield*</code> 组合</td><td>Ch6 流式处理</td></tr>
+<tr><td><strong>AttributionState</strong></td><td>归因状态</td><td>记录文件修改归属信息的状态对象，由 <code>commitAttribution.ts</code> 管理，用于追踪哪些文件变更是 Claude 做出的</td><td>Ch17 状态管理</td></tr>
+<tr><td><strong>AutoCompact</strong></td><td>自动压缩</td><td>监控 token 用量并在接近上限时自动触发 Compaction 的机制，由 <code>autoCompact.ts</code> 实现阈值判断（<code>calculateTokenWarningState</code>）和触发逻辑</td><td>Ch18 对话管理</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="b"><a class="header" href="#b">B</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>BashTool</strong></td><td>Bash 工具</td><td>最复杂的内置工具（18 个源文件），赋予 AI 执行 shell 命令的能力，配备命令安全分类、路径验证、只读模式强制和破坏性操作检测等多层安全机制</td><td>Ch8 内置工具</td></tr>
+<tr><td><strong>Branded Type</strong></td><td>品牌类型</td><td>TypeScript 中通过交叉类型 <code>string &amp; { __brand: 'X' }</code> 创建的名义类型（如 <code>SessionId</code>、<code>AgentId</code>），在编译期防止不同 ID 类型的意外混用</td><td>Ch3 类型系统</td></tr>
+<tr><td><strong>BridgeAPI</strong></td><td>桥接 API</td><td>连接 Claude Code CLI 与外部 IDE（VS Code 等）的通信层，通过 <code>bridge/</code> 目录下的模块实现 HTTP/WebSocket 双向消息传递</td><td>Ch20 REPL</td></tr>
+<tr><td><strong>buildTool</strong></td><td>工具工厂</td><td><code>src/Tool.ts</code> 中的工厂函数，将 <code>ToolDef</code> 注入失败关闭的安全默认值（如 <code>isConcurrencySafe: false</code>）并补全为完整的 <code>Tool</code> 对象</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>Bundle</strong></td><td>打包产物</td><td>通过 Bun 打包器将 TypeScript 源码编译为单个可分发 JavaScript 文件的最终产物，包含 tree-shaking、DCE 和 <code>feature()</code> 宏展开等优化</td><td>Ch23 构建系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="c"><a class="header" href="#c">C</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>CanUseToolFn</strong></td><td>工具可用性判断函数</td><td>类型签名为 <code>(tool, input, toolUseContext, assistantMessage, toolUseID) =&gt; Promise&lt;PermissionDecision&gt;</code> 的回调，决定某个工具调用是否被允许</td><td>Ch13 权限模型</td></tr>
+<tr><td><strong>CircularBuffer</strong></td><td>循环缓冲区</td><td>固定容量的环形数据结构（<code>utils/CircularBuffer.ts</code>），写满后覆盖最早数据，用于日志记录和终端输出等需要限制内存用量的场景</td><td>Ch21 性能优化</td></tr>
+<tr><td><strong>Claude Code</strong></td><td>Claude Code</td><td>Anthropic 官方推出的 CLI 编码助手，基于 Claude 模型构建，集成工具调用、Agent 系统、MCP 协议等能力的终端原生 AI 开发工具，约 49 万行 TypeScript 源码</td><td>Ch1 项目概览</td></tr>
+<tr><td><strong>Compaction</strong></td><td>上下文压缩</td><td>当对话 token 超过阈值时，自动裁剪历史消息并生成摘要以释放 token 空间的机制，包括 <code>compact</code>、<code>microCompact</code>、<code>snipCompaction</code> 等策略层级</td><td>Ch18 对话管理</td></tr>
+<tr><td><strong>ContentBlockParam</strong></td><td>内容块参数</td><td>Anthropic SDK 中表示消息内容块的类型，包括 <code>text</code>、<code>tool_use</code>、<code>tool_result</code>、<code>image</code> 等变体，构成 API 请求/响应的基本内容单元</td><td>Ch5 消息系统</td></tr>
+<tr><td><strong>Coordinator Mode</strong></td><td>协调者模式</td><td>多 Agent 协作的运行模式，一个主 Agent 充当协调者分配任务给多个子 Agent 并行执行，由 <code>coordinator/coordinatorMode.ts</code> 实现</td><td>Ch11 子智能体</td></tr>
+<tr><td><strong>CostTracker</strong></td><td>成本追踪器</td><td>追踪 API 调用的 token 用量和费用的模块（<code>cost-tracker.ts</code>，约 320 行），提供 <code>getModelUsage</code>、<code>getTotalCost</code> 等聚合函数</td><td>Ch4 查询引擎</td></tr>
+<tr><td><strong>createStore</strong></td><td>创建存储</td><td>Zustand-like 的响应式状态存储工厂函数（<code>state/store.ts</code>），支持 <code>useSyncExternalStore</code> 订阅和 <code>onChangeAppState</code> 回调</td><td>Ch17 状态管理</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="d"><a class="header" href="#d">D</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>DCE (Dead Code Elimination)</strong></td><td>死代码消除</td><td>构建时通过 <code>feature()</code> 宏和 <code>process.env</code> 条件判断，在 Bun 打包阶段移除不会执行到的代码分支，减小产物体积并隔离内部/外部功能</td><td>Ch23 构建系统</td></tr>
+<tr><td><strong>DeepImmutable&lt;T&gt;</strong></td><td>深度不可变</td><td>递归地将对象所有属性标记为 <code>readonly</code> 的工具类型，用于权限上下文等安全关键数据结构，防止意外修改</td><td>Ch3 类型系统</td></tr>
+<tr><td><strong>DenialTracking</strong></td><td>拒绝追踪</td><td>记录工具调用被用户拒绝次数的机制（<code>DenialTrackingState</code>），连续拒绝超过阈值时自动升级为人工确认，避免反复打扰</td><td>Ch13 权限模型</td></tr>
+<tr><td><strong>Discriminated Union</strong></td><td>可辨识联合</td><td>TypeScript 中通过共享的字面量字段（如 `type: ‘user’</td><td>‘assistant’<code>）区分联合类型各分支的设计模式，</code>Message` 类型体系的核心架构</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="e"><a class="header" href="#e">E</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Elicitation</strong></td><td>信息征询</td><td>MCP 协议中 Server 向 Client 主动请求额外输入信息的机制（如请求 OAuth 凭据或用户确认），由 <code>services/mcp/elicitationHandler.ts</code>（约 310 行）处理</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><strong>ExploreAgent</strong></td><td>探索智能体</td><td>内置 Agent 之一，专用于代码库探索和信息收集的只读任务，使用低成本模型并跳过 CLAUDE.md 加载以最大化效率</td><td>Ch10 Agent 模型</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="f"><a class="header" href="#f">F</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Feature Flag</strong></td><td>特性开关</td><td>通过 GrowthBook 远程配置或 <code>feature()</code> 编译时宏控制的功能开关，用于渐进式发布新功能、A/B 测试和内外部功能隔离</td><td>Ch23 构建系统</td></tr>
+<tr><td><strong>feature()</strong></td><td>特性宏</td><td><code>bun:bundle</code> 提供的编译时宏函数，返回布尔常量，在打包阶段决定条件分支的去留，实现零运行时开销的特性开关</td><td>Ch2 启动流程</td></tr>
+<tr><td><strong>FileHistoryState</strong></td><td>文件历史状态</td><td>记录工具执行过程中文件修改前后快照的状态对象（<code>utils/fileHistory.ts</code>），支持用户回滚（undo）单个文件或整轮变更</td><td>Ch17 状态管理</td></tr>
+<tr><td><strong>FileStateCache</strong></td><td>文件状态缓存</td><td>LRU 缓存结构（<code>utils/fileStateCache.ts</code>），存储已读取文件的内容和元数据，避免同一轮工具执行中重复磁盘 I/O，通过 <code>cloneFileStateCache</code> 在 Agent fork 时克隆</td><td>Ch9 工具执行</td></tr>
+<tr><td><strong>Fork (subagent)</strong></td><td>派生（子智能体）</td><td>从主 Agent 创建独立子 Agent 的操作（<code>forkSubagent.ts</code>，约 210 行），子 Agent 继承部分上下文但拥有独立消息历史和工具集，通过共享 prompt cache 前缀最大化缓存命中</td><td>Ch11 子智能体</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="g"><a class="header" href="#g">G</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Generator Pipeline</strong></td><td>生成器管道</td><td><code>query()</code> -&gt; <code>queryLoop()</code> -&gt; tool execution 构成的三层 <code>AsyncGenerator</code> 嵌套管道，通过 <code>yield</code> 逐层冒泡进度事件，再由外层收集器聚合为最终结果</td><td>Ch6 流式处理</td></tr>
+<tr><td><strong>GrowthBook</strong></td><td>GrowthBook</td><td>开源的特性开关和 A/B 测试平台，Claude Code 通过 <code>services/analytics/growthbook.ts</code>（约 1150 行）集成，控制远程功能发布和实验分组</td><td>Ch2 启动流程</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="h"><a class="header" href="#h">H</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Harness Engineering</strong></td><td>骨架工程</td><td>一种 AI 应用开发方法论，将应用分为确定性的“骨架“（Harness）和非确定性的“模型“（Model）两部分；骨架负责工具注册、权限、UI 等基础设施，模型负责推理和决策</td><td>Ch1 项目概览</td></tr>
+<tr><td><strong>Hook System</strong></td><td>钩子系统</td><td>允许用户在工具执行前后注入自定义脚本的扩展机制，通过 <code>settings.json</code> 配置 <code>hooks</code> 字段，支持 <code>PreToolUse</code>、<code>PostToolUse</code>、<code>Notification</code>、<code>Stop</code> 等事件类型</td><td>Ch9 工具执行</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="i"><a class="header" href="#i">I</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Ink</strong></td><td>Ink 框架</td><td>基于 React 的终端 UI 框架，Claude Code 使用其深度定制的内部 fork 版本（<code>src/ink/</code>，50+ 模块），支持 Flexbox 布局、焦点管理、搜索高亮和虚拟滚动</td><td>Ch19 Ink/React</td></tr>
+<tr><td><strong>InputSchema</strong></td><td>输入模式</td><td>每个工具使用 Zod（v4）定义的参数验证 schema，在工具注册时声明，运行时自动验证 Claude 返回的 JSON 参数是否合法，同时驱动 TypeScript 类型推断</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>isConcurrencySafe</strong></td><td>并发安全</td><td>Tool 接口的布尔方法，返回 <code>true</code> 时允许该工具与其他标记为并发安全的工具并行执行；默认为 <code>false</code>（失败关闭原则）</td><td>Ch7 工具架构</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="j"><a class="header" href="#j">J</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>JSON-RPC</strong></td><td>JSON 远程过程调用</td><td>基于 JSON 的轻量远程过程调用协议（2.0 规范），MCP 协议的底层传输格式，通过 <code>jsonrpc: "2.0"</code> 标记，支持请求/响应和单向通知两种消息模式</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><strong>JSX</strong></td><td>JSX</td><td>JavaScript XML 语法扩展，Claude Code 使用 JSX 编写终端 UI 组件（<code>.tsx</code> 文件），通过 Ink 框架将 React 组件树渲染到终端而非浏览器 DOM</td><td>Ch19 Ink/React</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="l"><a class="header" href="#l">L</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>lazySchema</strong></td><td>惰性模式</td><td>延迟构造 Zod schema 的包装器（<code>utils/lazySchema.ts</code>），用于打破模块加载时的循环依赖，避免启动时同步解析所有工具 schema</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>LRU Cache</strong></td><td>最近最少使用缓存</td><td>一种缓存淘汰策略，当容量满时移除最久未被访问的条目；Claude Code 中用于 <code>FileStateCache</code>、MCP 连接缓存等多个场景</td><td>Ch21 性能优化</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="m"><a class="header" href="#m">M</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>MCP (Model Context Protocol)</strong></td><td>模型上下文协议</td><td>Anthropic 提出的开放协议标准，定义 AI 应用（Client）与外部工具/数据源（Server）之间的标准化 JSON-RPC 通信接口，支持 stdio 和 SSE 两种传输方式</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><strong>MCPServerConnection</strong></td><td>MCP 服务器连接</td><td>表示一个已建立 MCP Server 连接的对象（定义于 <code>services/mcp/types.ts</code>），包含连接状态、可用工具列表、资源目录和提示模板等运行时信息</td><td>Ch15 MCP 协议</td></tr>
+<tr><td><strong>Memoization</strong></td><td>记忆化</td><td>缓存函数调用结果的优化技术，Claude Code 有三层体系：<code>memoize</code>（永久缓存）、<code>memoizeWithTTL</code>（定时过期）和 React Compiler 自动 memoization</td><td>Ch21 性能优化</td></tr>
+<tr><td><strong>Message (类型体系)</strong></td><td>消息（类型体系）</td><td>以 Discriminated Union 模式定义的消息类型族，包含 <code>UserMessage</code>、<code>AssistantMessage</code>、<code>SystemMessage</code>、<code>ProgressMessage</code>、<code>TombstoneMessage</code>、<code>AttachmentMessage</code> 等 7+ 种变体</td><td>Ch5 消息系统</td></tr>
+<tr><td><strong>MicroCompact</strong></td><td>微压缩</td><td>Compaction 的最轻量级策略（<code>services/compact/microCompact.ts</code>，约 530 行），使用快速模型对单条过长工具结果进行局部摘要，不触碰整体对话结构</td><td>Ch18 对话管理</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="n"><a class="header" href="#n">N</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>normalizeMessagesForAPI</strong></td><td>API 消息标准化</td><td>将内部 <code>Message[]</code> 转换为 Anthropic API 可接受的 user/assistant 交替格式的多阶段转换函数，处理消息合并、进度消息过滤、附件转换等，定义在 <code>utils/messages.ts</code>（约 5500 行）</td><td>Ch5 消息系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="o"><a class="header" href="#o">O</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>OAuth</strong></td><td>开放授权</td><td>标准授权框架（2.0 + PKCE），Claude Code 通过 <code>services/oauth/</code> 实现完整的授权码流程，用于 claude.ai 登录认证和 MCP Server 授权</td><td>Ch16 MCP 认证</td></tr>
+<tr><td><strong>omitClaudeMd</strong></td><td>省略 CLAUDE.md</td><td>Agent 配置选项，指示在子 Agent 或 SDK 模式下跳过加载 <code>CLAUDE.md</code> 项目配置文件以节省 token；Explore Agent 利用此选项每周节省大量 token 消耗</td><td>Ch10 Agent 模型</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="p"><a class="header" href="#p">P</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>PermissionMode</strong></td><td>权限模式</td><td>控制工具执行审批策略的枚举，包含 <code>default</code>（逐一确认）、<code>auto</code>（自动批准安全操作）、<code>bypassPermissions</code>（跳过所有确认）、<code>plan</code>（只读规划）等多种模式</td><td>Ch13 权限模型</td></tr>
+<tr><td><strong>PermissionResult</strong></td><td>权限结果</td><td>工具权限检查的返回值类型（定义在 <code>utils/permissions/PermissionResult.ts</code>），行为分为 <code>allow</code>（允许）、<code>deny</code>（拒绝）、<code>ask</code>（需要用户确认）三种</td><td>Ch13 权限模型</td></tr>
+<tr><td><strong>ProgressMessage</strong></td><td>进度消息</td><td><code>Message</code> 类型的一个分支，表示工具执行过程中的实时进度更新，泛型参数 <code>&lt;T&gt;</code> 允许工具自定义进度数据结构，最终结果产出后被替换</td><td>Ch6 流式处理</td></tr>
+<tr><td><strong>Prompt Cache</strong></td><td>提示缓存</td><td>Anthropic API 的缓存机制，对已发送的 system prompt 和历史消息前缀进行缓存，后续请求可复用已处理的 token；Fork Agent 通过 <code>model: 'inherit'</code> 最大化缓存命中率</td><td>Ch11 子智能体</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="q"><a class="header" href="#q">Q</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>QueryEngine</strong></td><td>查询引擎</td><td>Claude Code 的核心引擎类（<code>QueryEngine.ts</code>，约 1300 行），一个对话对应一个实例，封装 <code>submitMessage</code> 入口、消息流管理和上下文压缩调度，SDK 和 REPL 共享同一抽象</td><td>Ch4 查询引擎</td></tr>
+<tr><td><strong>queryLoop</strong></td><td>查询循环</td><td><code>query.ts</code> 中实现的核心状态机（约 1700 行），每次迭代执行“发送 API 请求 -&gt; 接收流式响应 -&gt; 执行工具 -&gt; 判断终止/继续“循环，直至任务完成</td><td>Ch4 查询引擎</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="r"><a class="header" href="#r">R</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>React Compiler</strong></td><td>React 编译器</td><td>Meta 开发的编译器插件，Claude Code 集成该编译器（可在 <code>AppState.tsx</code> 的 <code>_c()</code> 调用中观察到）自动为 React 组件添加 memoization，无需手动 <code>useMemo</code>/<code>useCallback</code></td><td>Ch19 Ink/React</td></tr>
+<tr><td><strong>Reconciler</strong></td><td>协调器</td><td>React 渲染管道中负责比较虚拟树差异并更新实际输出的模块，Claude Code 的 <code>ink/reconciler.ts</code>（约 510 行）为终端字符矩阵渲染定制了专用协调器</td><td>Ch19 Ink/React</td></tr>
+<tr><td><strong>REPL</strong></td><td>交互式执行环境</td><td>Read-Eval-Print Loop 的缩写，既指 Claude Code 的主交互界面（<code>screens/REPL.tsx</code>），也指通过 <code>REPLTool</code> 提供的交互式代码执行工具</td><td>Ch20 REPL</td></tr>
+<tr><td><strong>Resume (Agent)</strong></td><td>Agent 恢复</td><td>从持久化的会话 Transcript 中恢复 Agent 执行状态的机制，通过 <code>resumeAgent.ts</code>（约 265 行）实现 sidechain 重建，支持 <code>--resume</code> 断点续跑</td><td>Ch11 子智能体</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="s"><a class="header" href="#s">S</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SDKMessage</strong></td><td>SDK 消息</td><td>通过 Agent SDK 接口传递的消息类型（定义于 <code>entrypoints/agentSdkTypes.ts</code>），是内部 <code>Message</code> 类型的外部投影，适配 SDK 调用方的集成需求</td><td>Ch1 项目概览</td></tr>
+<tr><td><strong>SessionMemory</strong></td><td>会话记忆</td><td>跨会话持久化的关键信息摘要，Compaction 时自动由 <code>services/compact/sessionMemoryCompact.ts</code> 提取并存储，支持下次会话恢复上下文</td><td>Ch18 对话管理</td></tr>
+<tr><td><strong>Skill</strong></td><td>技能</td><td>由 Markdown frontmatter 定义触发条件、系统提示词和工具白名单的可复用能力模块，对应用户的 <code>/slash-command</code>，通过 <code>SkillTool</code> 注入会话，支持 bundled 内置和用户自定义两种来源</td><td>Ch12 技能系统</td></tr>
+<tr><td><strong>SnipCompaction</strong></td><td>片段压缩</td><td>Compaction 策略之一，将过长的工具结果（如大文件内容）截断为摘要并标注被省略的行数，比完整 Compaction 更精细更轻量</td><td>Ch18 对话管理</td></tr>
+<tr><td><strong>StreamingToolExecutor</strong></td><td>流式工具执行器</td><td><code>services/tools/StreamingToolExecutor.ts</code>（约 530 行）中定义的并发调度引擎，管理工具的四态生命周期（queued -&gt; executing -&gt; completed -&gt; yielded）</td><td>Ch9 工具执行</td></tr>
+<tr><td><strong>SystemMessage</strong></td><td>系统消息</td><td><code>Message</code> 类型的一个分支，由系统自动生成的内部控制消息，包含 15+ 种子类型（<code>compact_boundary</code>、<code>local_command</code>、<code>api_error</code> 等），不直接暴露给用户</td><td>Ch5 消息系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="t"><a class="header" href="#t">T</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Tool</strong></td><td>工具</td><td>Claude Code 的核心接口（<code>Tool.ts</code>，约 790 行），定义了 30+ 方法覆盖输入验证、权限检查、执行函数、UI 渲染和并发控制的完整生命周期</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>ToolDef</strong></td><td>工具定义</td><td><code>Tool</code> 接口的部分实现类型，开发者只需定义关键方法（<code>inputSchema</code>、<code>call</code>、<code>userFacingName</code> 等），通过 <code>buildTool</code> 工厂函数补全默认值后成为完整 Tool</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>ToolResult</strong></td><td>工具结果</td><td>工具执行完成后的返回值类型，包含 <code>data</code>（内容块数组）、<code>newMessages</code>（注入消息）和 <code>contextModifier</code>（上下文修改器）等字段</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>ToolSearchTool</strong></td><td>工具搜索工具</td><td>延迟加载机制的核心工具（<code>tools/ToolSearchTool/</code>，约 470 行），当可用工具过多时，Claude 先通过搜索发现相关工具再按需加载 schema，避免一次性注册所有工具占满 prompt</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>ToolUseContext</strong></td><td>工具使用上下文</td><td>依赖注入的核心载体，传递给每个工具执行函数的大型结构体（40+ 字段），包含 <code>AppState</code>、<code>AbortController</code>、<code>FileStateCache</code>、配置、跟踪器等运行时信息</td><td>Ch7 工具架构</td></tr>
+<tr><td><strong>TombstoneMessage</strong></td><td>墓碑消息</td><td><code>Message</code> 类型的一个分支，标记已被 Compaction 移除的消息占位符，保留消息 ID 但清空内容，确保消息索引序列不断裂</td><td>Ch18 对话管理</td></tr>
+<tr><td><strong>Transcript</strong></td><td>对话记录</td><td>完整的会话消息历史，以 JSONL 格式通过 <code>utils/sessionStorage.ts</code> 持久化到磁盘（<code>~/.claude/sessions/</code>），支持增量录制和 <code>--resume</code> 恢复</td><td>Ch5 消息系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="u"><a class="header" href="#u">U</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>UserMessage</strong></td><td>用户消息</td><td><code>Message</code> 类型的一个分支，表示用户输入的消息，包含文本内容和可选附件（图片、文件等），是查询循环的触发点，由 <code>createUserMessage</code> 工厂函数构建</td><td>Ch5 消息系统</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="v"><a class="header" href="#v">V</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Verification Agent</strong></td><td>验证智能体</td><td>内置 Agent 之一，专用于对抗性验证代码变更的正确性，红色标识表示审查角色，通过运行测试、lint 和自我反省确认修改符合预期</td><td>Ch10 Agent 模型</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="x"><a class="header" href="#x">X</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>XAA (Cross-Account Access)</strong></td><td>跨账户访问</td><td>企业级 MCP 认证扩展机制（<code>services/mcp/xaa.ts</code>，约 510 行），基于 RFC 8693 Token Exchange + RFC 7523 JWT Bearer 实现跨组织的 MCP Server 授权</td><td>Ch16 MCP 认证</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="y"><a class="header" href="#y">Y</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>yield*</strong></td><td>委托生成</td><td>JavaScript 生成器语法，将一个 Generator 的所有产出值委托给另一个 Generator，Claude Code 的 Generator Pipeline 中大量使用此语法链接子管道实现组合</td><td>Ch6 流式处理</td></tr>
+<tr><td><strong>Yoga Layout</strong></td><td>Yoga 布局引擎</td><td>Meta 开发的跨平台 Flexbox 布局引擎，Ink 框架底层通过 WASM 调用 Yoga 在终端中计算 UI 组件的尺寸和位置，支持 <code>flexDirection</code>、<code>padding</code>、<code>margin</code> 等属性</td><td>Ch19 Ink/React</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="z"><a class="header" href="#z">Z</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>术语</th><th>中文</th><th>定义</th><th>首见章节</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Zod Schema</strong></td><td>Zod 验证模式</td><td>使用 Zod 库（v4）定义的运行时类型验证模式，Claude Code 的所有工具输入参数均通过 Zod schema 声明，同时服务于参数验证、TypeScript 类型推断和 JSON Schema 生成供 API 使用</td><td>Ch3 类型系统</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<blockquote>
+<p><strong>注</strong>：本术语表共收录 65 个术语。部分术语在多个章节中反复出现，“首见章节“仅标注其首次被系统性讨论的位置。</p>
+</blockquote>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part10-philosophy/ch25-philosophy.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../appendix/appendix-b-source-map.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part10-philosophy/ch25-philosophy.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../appendix/appendix-b-source-map.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

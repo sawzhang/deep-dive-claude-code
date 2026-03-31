@@ -1,0 +1,717 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 15 章：MCP 协议实现 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part6-mcp/ch15-mcp-protocol.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-15-章mcp-协议实现"><a class="header" href="#第-15-章mcp-协议实现">第 15 章：MCP 协议实现</a></h1>
+<p>Model Context Protocol（MCP）是 Claude Code 可扩展性的核心基础设施。通过 MCP，外部服务可以将自己的工具、资源和提示注入到 Claude 的能力空间中，使其能够操作数据库、调用 API、访问设计工具等几乎任何外部系统。本章将深入 <code>src/services/mcp/client.ts</code> 这个超过 3300 行的协议引擎，解析其连接管理、工具转换和资源系统的完整实现。</p>
+<h2 id="151-mcp-协议概述"><a class="header" href="#151-mcp-协议概述">15.1 MCP 协议概述</a></h2>
+<p>MCP 建立在 JSON-RPC 2.0 之上，通过多种传输层（Transport）承载消息。其核心思想是将 AI 工具调用抽象为标准化的请求-响应协议，使得工具提供者和 AI 客户端可以独立演进。</p>
+<p>协议的基本交互模式：</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant CC as Claude Code (Client)
+    participant MCP as MCP Server
+
+    CC-&gt;&gt;MCP: initialize (capabilities, protocolVersion)
+    MCP--&gt;&gt;CC: initialize response (serverCapabilities)
+    CC-&gt;&gt;MCP: initialized (通知)
+
+    Note over CC,MCP: 连接已建立
+
+    CC-&gt;&gt;MCP: tools/list
+    MCP--&gt;&gt;CC: tools (name, description, inputSchema)
+
+    CC-&gt;&gt;MCP: resources/list
+    MCP--&gt;&gt;CC: resources (uri, name, mimeType)
+
+    CC-&gt;&gt;MCP: tools/call (name, arguments)
+    MCP--&gt;&gt;CC: result (content[])
+
+    MCP-&gt;&gt;CC: elicitation/request (URL/Form)
+    CC--&gt;&gt;MCP: elicitation/response
+</code></pre>
+<p>Claude Code 作为 MCP 客户端，使用 <code>@modelcontextprotocol/sdk</code> 官方 SDK 实现协议层。但在 SDK 之上，Claude Code 构建了大量的工程逻辑：连接池管理、认证处理、工具类型转换、输出截断、错误恢复等。</p>
+<h2 id="152-七种传输层"><a class="header" href="#152-七种传输层">15.2 七种传输层</a></h2>
+<p>Claude Code 支持多种 MCP 传输层，覆盖了从本地进程到远程服务的完整场景。</p>
+<h3 id="1521-stdio-传输"><a class="header" href="#1521-stdio-传输">15.2.1 stdio 传输</a></h3>
+<p>最基础的传输方式——启动一个子进程，通过标准输入/输出传递 JSON-RPC 消息：</p>
+<pre><code class="language-typescript">// src/services/mcp/client.ts (connectToServer 函数内)
+if (!serverRef.type || serverRef.type === 'stdio') {
+  transport = new StdioClientTransport({
+    command: serverRef.command,
+    args: serverRef.args,
+    env: { ...subprocessEnv(), ...expandedEnv },
+    cwd: getOriginalCwd(),
+  })
+}
+</code></pre>
+<p>stdio 是本地 MCP 服务器的首选传输。它的优势是简单、安全（进程隔离）、不需要网络端口。</p>
+<h3 id="1522-sse-传输server-sent-events"><a class="header" href="#1522-sse-传输server-sent-events">15.2.2 SSE 传输（Server-Sent Events）</a></h3>
+<p>用于远程 HTTP MCP 服务器的旧式传输：</p>
+<pre><code class="language-typescript">if (serverRef.type === 'sse') {
+  const authProvider = new ClaudeAuthProvider(name, serverRef)
+  const combinedHeaders = await getMcpServerHeaders(name, serverRef)
+
+  const transportOptions: SSEClientTransportOptions = {
+    authProvider,
+    fetch: wrapFetchWithTimeout(
+      wrapFetchWithStepUpDetection(createFetchWithInit(), authProvider),
+    ),
+    requestInit: {
+      headers: {
+        'User-Agent': getMCPUserAgent(),
+        ...combinedHeaders,
+      },
+    },
+  }
+
+  // EventSource 连接不能使用超时包装——它是长连接
+  transportOptions.eventSourceInit = {
+    fetch: async (url, init) =&gt; {
+      const authHeaders: Record&lt;string, string&gt; = {}
+      const tokens = await authProvider.tokens()
+      if (tokens) {
+        authHeaders.Authorization = `Bearer ${tokens.access_token}`
+      }
+      return fetch(url, { ...init, ...proxyOptions, headers: {
+        'User-Agent': getMCPUserAgent(),
+        ...authHeaders, ...init?.headers, ...combinedHeaders,
+        Accept: 'text/event-stream',
+      }})
+    },
+  }
+
+  transport = new SSEClientTransport(new URL(serverRef.url), transportOptions)
+}
+</code></pre>
+<p>SSE 传输的关键设计：POST 请求使用超时包装（60 秒），但 EventSource 连接（GET）不使用——因为 SSE 流是持久连接，加超时会错误地断开它。</p>
+<h3 id="1523-http-streamable-传输"><a class="header" href="#1523-http-streamable-传输">15.2.3 HTTP Streamable 传输</a></h3>
+<p>这是 MCP 2025-03-26 规范定义的新一代传输：</p>
+<pre><code class="language-typescript">// MCP Streamable HTTP 规范要求客户端声明接受 JSON 和 SSE
+const MCP_STREAMABLE_HTTP_ACCEPT = 'application/json, text/event-stream'
+</code></pre>
+<p>HTTP Streamable 传输统一了请求-响应和流式通知，是 SSE 传输的演进版本。</p>
+<h3 id="1524-websocket-传输"><a class="header" href="#1524-websocket-传输">15.2.4 WebSocket 传输</a></h3>
+<p>用于需要全双工通信的场景，特别是 IDE 集成：</p>
+<pre><code class="language-typescript">if (serverRef.type === 'ws-ide') {
+  const tlsOptions = getWebSocketTLSOptions()
+  const wsHeaders = {
+    'User-Agent': getMCPUserAgent(),
+    ...(serverRef.authToken &amp;&amp; {
+      'X-Claude-Code-Ide-Authorization': serverRef.authToken,
+    }),
+  }
+  // Bun 和 Node.js ws 模块的差异处理
+  let wsClient: WsClientLike
+  if (typeof Bun !== 'undefined') {
+    // Bun WebSocket
+  } else {
+    wsClient = await createNodeWsClient(url, { headers: wsHeaders, ...tlsOptions })
+  }
+  transport = new WebSocketTransport(wsClient)
+}
+</code></pre>
+<h3 id="1525-sdk-传输"><a class="header" href="#1525-sdk-传输">15.2.5 SDK 传输</a></h3>
+<p>用于同进程的 MCP 服务器（如 Agent SDK 嵌入场景）：</p>
+<pre><code class="language-typescript">if (serverRef.type === 'sdk') {
+  transport = new SdkControlClientTransport(serverRef)
+}
+</code></pre>
+<h3 id="1526-ide-变体sse-ide-ws-ide"><a class="header" href="#1526-ide-变体sse-ide-ws-ide">15.2.6 IDE 变体（sse-ide, ws-ide）</a></h3>
+<p>IDE 传输是 SSE 和 WebSocket 的简化版本，去掉了 OAuth 认证层，因为 IDE 服务器运行在本地，通过锁文件或 token 进行身份验证。</p>
+<h3 id="1527-claudeai-proxy-传输"><a class="header" href="#1527-claudeai-proxy-传输">15.2.7 claudeai-proxy 传输</a></h3>
+<p>这是 claude.ai 网页版的代理传输，通过 Anthropic 的基础设施中转 MCP 请求：</p>
+<pre><code class="language-typescript">export function createClaudeAiProxyFetch(innerFetch: FetchLike): FetchLike {
+  return async (url, init) =&gt; {
+    const doRequest = async () =&gt; {
+      await checkAndRefreshOAuthTokenIfNeeded()
+      const currentTokens = getClaudeAIOAuthTokens()
+      if (!currentTokens) throw new Error('No claude.ai OAuth token available')
+      const headers = new Headers(init?.headers)
+      headers.set('Authorization', `Bearer ${currentTokens.accessToken}`)
+      const response = await innerFetch(url, { ...init, headers })
+      return { response, sentToken: currentTokens.accessToken }
+    }
+
+    const { response, sentToken } = await doRequest()
+    if (response.status !== 401) return response
+
+    // 401 重试逻辑
+    const tokenChanged = await handleOAuth401Error(sentToken).catch(() =&gt; false)
+    if (!tokenChanged) {
+      const now = getClaudeAIOAuthTokens()?.accessToken
+      if (!now || now === sentToken) return response
+    }
+    try {
+      return (await doRequest()).response
+    } catch {
+      return response // 重试失败，返回原始 401
+    }
+  }
+}
+</code></pre>
+<p>401 重试逻辑的设计值得研究：它精确地捕获了发送时使用的 token，避免在并发 401 场景下出现 ABA 问题——另一个连接器可能已经在你检查之前刷新了 token。</p>
+<h2 id="153-客户端实现"><a class="header" href="#153-客户端实现">15.3 客户端实现</a></h2>
+<h3 id="1531-连接管理"><a class="header" href="#1531-连接管理">15.3.1 连接管理</a></h3>
+<p>连接建立使用了 memoize 模式，确保每个服务器只维护一个连接：</p>
+<pre><code class="language-typescript">export const connectToServer = memoize(
+  async (name: string, serverRef: ScopedMcpServerConfig, serverStats?):
+    Promise&lt;MCPServerConnection&gt; =&gt; {
+    const connectStartTime = Date.now()
+    try {
+      let transport
+      // ... 根据 serverRef.type 创建传输层
+
+      // 创建 MCP SDK Client
+      const client = new Client(
+        { name: 'claude-code', version: '...' },
+        { capabilities: { ... } },
+      )
+
+      await client.connect(transport)
+
+      return {
+        name, type: 'connected', client,
+        capabilities: client.getServerCapabilities(),
+        config: serverRef,
+      }
+    } catch (error) {
+      // 认证失败 -&gt; needs-auth
+      // 其他失败 -&gt; error
+    }
+  },
+  (name, serverRef) =&gt; getServerCacheKey(name, serverRef),
+)
+</code></pre>
+<p>memoize 的 key 是服务器名称和完整配置的 JSON 序列化——这确保了同名但不同配置的服务器不会共用连接。</p>
+<h3 id="1532-连接批次控制"><a class="header" href="#1532-连接批次控制">15.3.2 连接批次控制</a></h3>
+<pre><code class="language-typescript">export function getMcpServerConnectionBatchSize(): number {
+  return parseInt(process.env.MCP_SERVER_CONNECTION_BATCH_SIZE || '', 10) || 3
+}
+
+function getRemoteMcpServerConnectionBatchSize(): number {
+  return parseInt(process.env.MCP_REMOTE_SERVER_CONNECTION_BATCH_SIZE || '', 10) || 20
+}
+</code></pre>
+<p>本地服务器（stdio）的并发连接限制为 3——因为每个连接都会启动子进程，过多的并发进程会拖慢系统。远程服务器的限制为 20——网络请求的开销更小。</p>
+<h3 id="1533-会话过期与重连"><a class="header" href="#1533-会话过期与重连">15.3.3 会话过期与重连</a></h3>
+<pre><code class="language-typescript">export function isMcpSessionExpiredError(error: Error): boolean {
+  const httpStatus =
+    'code' in error ? (error as Error &amp; { code?: number }).code : undefined
+  if (httpStatus !== 404) return false
+  return (
+    error.message.includes('"code":-32001') ||
+    error.message.includes('"code": -32001')
+  )
+}
+</code></pre>
+<p>MCP 规范要求服务器在会话过期时返回 HTTP 404 + JSON-RPC 错误码 -32001。客户端同时检查两个信号来避免误判——普通的 404（错误 URL、服务器宕机）不会触发重连逻辑。</p>
+<h2 id="154-工具转换"><a class="header" href="#154-工具转换">15.4 工具转换</a></h2>
+<p>MCP 服务器返回的工具定义需要转换为 Claude Code 内部的 <code>Tool</code> 类型。这个转换过程发生在 <code>fetchToolsForClient</code> 中。</p>
+<h3 id="1541-工具名称构建"><a class="header" href="#1541-工具名称构建">15.4.1 工具名称构建</a></h3>
+<pre><code class="language-typescript">// src/services/mcp/mcpStringUtils.ts
+export function buildMcpToolName(serverName: string, toolName: string): string {
+  return `${getMcpPrefix(serverName)}${normalizeNameForMCP(toolName)}`
+}
+
+export function getMcpPrefix(serverName: string): string {
+  return `mcp__${normalizeNameForMCP(serverName)}__`
+}
+</code></pre>
+<p>MCP 工具名称遵循 <code>mcp__&lt;server&gt;__&lt;tool&gt;</code> 的三段式格式。这个设计确保了：</p>
+<ol>
+<li>不同服务器的同名工具不会冲突</li>
+<li>权限规则可以在服务器级别批量控制</li>
+<li>用户可以通过命名约定理解工具来源</li>
+</ol>
+<h3 id="1542-工具属性映射"><a class="header" href="#1542-工具属性映射">15.4.2 工具属性映射</a></h3>
+<pre><code class="language-typescript">export const fetchToolsForClient = memoizeWithLRU(
+  async (client: MCPServerConnection): Promise&lt;Tool[]&gt; =&gt; {
+    // ...
+    return toolsToProcess.map((tool): Tool =&gt; {
+      const fullyQualifiedName = buildMcpToolName(client.name, tool.name)
+      return {
+        ...MCPTool,
+        name: skipPrefix ? tool.name : fullyQualifiedName,
+        mcpInfo: { serverName: client.name, toolName: tool.name },
+        isMcp: true,
+
+        // MCP annotations → 内部属性
+        searchHint: typeof tool._meta?.['anthropic/searchHint'] === 'string'
+          ? tool._meta['anthropic/searchHint'].replace(/\s+/g, ' ').trim() || undefined
+          : undefined,
+        alwaysLoad: tool._meta?.['anthropic/alwaysLoad'] === true,
+
+        isConcurrencySafe() { return tool.annotations?.readOnlyHint ?? false },
+        isReadOnly() { return tool.annotations?.readOnlyHint ?? false },
+        isDestructive() { return tool.annotations?.destructiveHint ?? false },
+        isOpenWorld() { return tool.annotations?.openWorldHint ?? false },
+
+        inputJSONSchema: tool.inputSchema as Tool['inputJSONSchema'],
+
+        async checkPermissions() {
+          return {
+            behavior: 'passthrough' as const,
+            message: 'MCPTool requires permission.',
+            suggestions: [{
+              type: 'addRules' as const,
+              rules: [{ toolName: fullyQualifiedName, ruleContent: undefined }],
+              behavior: 'allow' as const,
+              destination: 'localSettings' as const,
+            }],
+          }
+        },
+        // ...
+      }
+    })
+  },
+  (client) =&gt; client.name,
+  MCP_FETCH_CACHE_SIZE,
+)
+</code></pre>
+<p>转换的关键映射关系：</p>
+<pre><code class="language-mermaid">flowchart LR
+    subgraph "MCP Tool 定义"
+        A[tool.name]
+        B[tool.description]
+        C[tool.inputSchema]
+        D[tool.annotations.readOnlyHint]
+        E[tool.annotations.destructiveHint]
+        F[tool.annotations.openWorldHint]
+        G["tool._meta['anthropic/searchHint']"]
+        H["tool._meta['anthropic/alwaysLoad']"]
+    end
+    subgraph "内部 Tool 类型"
+        I[name: mcp__server__tool]
+        J[description/prompt]
+        K[inputJSONSchema]
+        L[isReadOnly / isConcurrencySafe]
+        M[isDestructive]
+        N[isOpenWorld]
+        O[searchHint]
+        P[alwaysLoad]
+    end
+    A --&gt; I
+    B --&gt; J
+    C --&gt; K
+    D --&gt; L
+    E --&gt; M
+    F --&gt; N
+    G --&gt; O
+    H --&gt; P
+</code></pre>
+<p>MCP 工具的 <code>checkPermissions</code> 默认返回 <code>passthrough</code>——意味着 MCP 工具没有自定义的权限逻辑，完全依赖全局的规则系统。同时它提供了一个 <code>suggestion</code>，建议用户将该工具添加到本地设置的 allow 列表中。</p>
+<h3 id="1543-工具描述截断"><a class="header" href="#1543-工具描述截断">15.4.3 工具描述截断</a></h3>
+<pre><code class="language-typescript">const MAX_MCP_DESCRIPTION_LENGTH = 2048
+
+async prompt() {
+  const desc = tool.description ?? ''
+  return desc.length &gt; MAX_MCP_DESCRIPTION_LENGTH
+    ? desc.slice(0, MAX_MCP_DESCRIPTION_LENGTH) + '... [truncated]'
+    : desc
+}
+</code></pre>
+<p>OpenAPI 生成的 MCP 服务器经常把完整的端点文档（15-60KB）塞进工具描述。2048 字符的截断限制在保留核心意图的同时，防止上下文窗口被淹没。</p>
+<h3 id="1544-工具调用与会话恢复"><a class="header" href="#1544-工具调用与会话恢复">15.4.4 工具调用与会话恢复</a></h3>
+<pre><code class="language-typescript">async call(args, context, _canUseTool, parentMessage, onProgress?) {
+  const MAX_SESSION_RETRIES = 1
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const connectedClient = await ensureConnectedClient(client)
+      const mcpResult = await callMCPToolWithUrlElicitationRetry({
+        client: connectedClient, clientConnection: client,
+        tool: tool.name, args, meta,
+        signal: context.abortController.signal,
+        setAppState: context.setAppState,
+        onProgress: ...,
+        handleElicitation: context.handleElicitation,
+      })
+      // 处理结果...
+    } catch (error) {
+      if (attempt &lt; MAX_SESSION_RETRIES &amp;&amp; isMcpSessionExpiredError(error)) {
+        // 清除缓存，重新连接
+        connectToServer.cache.delete(key)
+        fetchToolsForClient.cache.delete(name)
+        continue
+      }
+      throw error
+    }
+  }
+}
+</code></pre>
+<p>会话过期时自动重连一次。重连前清除所有相关缓存（连接、工具列表、资源列表），确保下次使用全新的连接状态。</p>
+<h2 id="155-资源系统"><a class="header" href="#155-资源系统">15.5 资源系统</a></h2>
+<p>MCP 资源让服务器向 Claude 暴露结构化数据（文件、数据库记录、API 响应等）。</p>
+<pre><code class="language-typescript">export const fetchResourcesForClient = memoizeWithLRU(
+  async (client: MCPServerConnection): Promise&lt;ServerResource[]&gt; =&gt; {
+    if (client.type !== 'connected') return []
+
+    try {
+      if (!client.capabilities?.resources) return []
+
+      const result = await client.client.request(
+        { method: 'resources/list' },
+        ListResourcesResultSchema,
+      )
+
+      if (!result.resources) return []
+      return result.resources.map(resource =&gt; ({
+        ...resource,
+        server: client.name,  // 附加服务器名称
+      }))
+    } catch (error) {
+      logMCPError(client.name, `Failed to fetch resources: ${errorMessage(error)}`)
+      return []
+    }
+  },
+  (client) =&gt; client.name,
+  MCP_FETCH_CACHE_SIZE,
+)
+</code></pre>
+<p>资源获取使用 LRU 缓存来避免重复请求。每个资源被标注了来源服务器名称，方便后续的权限检查和 UI 展示。</p>
+<p>MCP Prompt 同样被转换为 Claude Code 的 Command 系统：</p>
+<pre><code class="language-typescript">export const fetchCommandsForClient = memoizeWithLRU(
+  async (client: MCPServerConnection): Promise&lt;Command[]&gt; =&gt; {
+    // ...
+    return promptsToProcess.map(prompt =&gt; ({
+      type: 'prompt' as const,
+      name: 'mcp__' + normalizeNameForMCP(client.name) + '__' + prompt.name,
+      description: prompt.description ?? '',
+      isMcp: true,
+      source: 'mcp',
+      async getPromptForCommand(args) {
+        const connectedClient = await ensureConnectedClient(client)
+        const result = await connectedClient.client.getPrompt({
+          name: prompt.name,
+          arguments: zipObject(argNames, argsArray),
+        })
+        return result.messages.map(message =&gt;
+          transformResultContent(message.content, connectedClient.name),
+        ).flat()
+      },
+    }))
+  },
+)
+</code></pre>
+<h2 id="156-进度流与-elicitation"><a class="header" href="#156-进度流与-elicitation">15.6 进度流与 Elicitation</a></h2>
+<h3 id="1561-进度报告"><a class="header" href="#1561-进度报告">15.6.1 进度报告</a></h3>
+<p>MCP 工具在执行过程中可以报告进度：</p>
+<pre><code class="language-typescript">if (onProgress &amp;&amp; toolUseId) {
+  onProgress({
+    toolUseID: toolUseId,
+    data: {
+      type: 'mcp_progress',
+      status: 'started',
+      serverName: client.name,
+      toolName: tool.name,
+    },
+  })
+}
+
+// ... 执行完成后
+onProgress({
+  toolUseID: toolUseId,
+  data: {
+    type: 'mcp_progress',
+    status: 'completed',
+    serverName: client.name,
+    toolName: tool.name,
+    elapsedTimeMs: Date.now() - startTime,
+  },
+})
+</code></pre>
+<h3 id="1562-elicitation-机制"><a class="header" href="#1562-elicitation-机制">15.6.2 Elicitation 机制</a></h3>
+<p>Elicitation 是 MCP 的一种交互模式，允许服务器在工具执行过程中请求用户输入。有两种模式：</p>
+<pre><code class="language-typescript">// src/services/mcp/elicitationHandler.ts
+function getElicitationMode(params: ElicitRequestParams): 'form' | 'url' {
+  return params.mode === 'url' ? 'url' : 'form'
+}
+</code></pre>
+<p><strong>URL 模式</strong>：服务器提供一个 URL（通常是 OAuth 回调页面），Claude Code 打开浏览器让用户完成交互，然后等待完成通知：</p>
+<pre><code class="language-typescript">export type ElicitationRequestEvent = {
+  serverName: string
+  requestId: string | number
+  params: ElicitRequestParams
+  signal: AbortSignal
+  respond: (response: ElicitResult) =&gt; void
+  waitingState?: ElicitationWaitingState
+  onWaitingDismiss?: (action: 'dismiss' | 'retry' | 'cancel') =&gt; void
+  completed?: boolean
+}
+</code></pre>
+<p><strong>Form 模式</strong>：服务器定义一个表单 Schema，Claude Code 在终端中渲染交互式表单，收集用户输入后返回。</p>
+<p>Elicitation 还支持 Hook 拦截，允许自动化环境在不需要人工交互的情况下处理 elicitation 请求：</p>
+<pre><code class="language-typescript">export function registerElicitationHandler(
+  client: Client,
+  serverName: string,
+  setAppState: (f: (prevState: AppState) =&gt; AppState) =&gt; void,
+): void {
+  try {
+    client.setRequestHandler(ElicitRequestSchema, async (request, extra) =&gt; {
+      // 首先运行 Hook
+      // 如果 Hook 提供了响应，直接返回
+      // 否则显示 UI 让用户交互
+    })
+  } catch { /* 服务器未声明 elicitation 能力 */ }
+}
+</code></pre>
+<p>完成通知使用专门的 <code>ElicitationCompleteNotificationSchema</code> 处理，通过 <code>elicitationId</code> 将完成事件关联到等待中的 elicitation 请求。</p>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant Claude as Claude Code
+    participant Server as MCP Server
+    participant Browser as 浏览器
+    participant Hook as Elicitation Hook
+
+    Claude-&gt;&gt;Server: tools/call
+    Server-&gt;&gt;Claude: elicitation/request (URL mode)
+
+    alt Hook 处理
+        Claude-&gt;&gt;Hook: 执行 Hook
+        Hook--&gt;&gt;Claude: 返回响应
+    else 用户交互
+        Claude-&gt;&gt;Browser: 打开 URL
+        Browser-&gt;&gt;Server: 用户完成交互
+        Server-&gt;&gt;Claude: elicitation/complete 通知
+    end
+
+    Claude--&gt;&gt;Server: elicitation/response
+    Server--&gt;&gt;Claude: tools/call result
+</code></pre>
+<p>这种设计实现了 MCP 协议的完整交互能力——工具不仅可以被动地接收输入、返回结果，还可以在执行过程中主动请求额外信息，打开浏览器进行身份验证，或展示表单收集配置参数。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part5-permission/ch14-bash-security.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part6-mcp/ch16-mcp-auth.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part5-permission/ch14-bash-security.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part6-mcp/ch16-mcp-auth.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

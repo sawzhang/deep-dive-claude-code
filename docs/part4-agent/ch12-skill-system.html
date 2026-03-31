@@ -1,0 +1,910 @@
+<!DOCTYPE HTML>
+<html lang="zh" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>第 12 章：Skill 系统 - 深入理解 Claude Code 源码</title>
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
+        <link rel="stylesheet" href="../css/variables-8adf115d.css">
+        <link rel="stylesheet" href="../css/general-2459343d.css">
+        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "../";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "../searchindex-03f343ff.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="../toc-3eef0c72.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">深入理解 Claude Code 源码</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/src/part4-agent/ch12-skill-system.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                            <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="第-12-章skill-系统"><a class="header" href="#第-12-章skill-系统">第 12 章：Skill 系统</a></h1>
+<blockquote>
+<p>“好的抽象不是隐藏复杂性，而是将复杂性放在正确的位置。”
+—— Kevlin Henney</p>
+</blockquote>
+<p>如果说 Agent 是 Claude Code 的“执行单元“，那么 Skill 就是它的“能力包“。Skill 系统将特定领域的专业知识（以 Markdown 编写的 Prompt 模板）、工具约束和执行策略封装为一个可发现、可调用、可复用的单元。用户看到的是 <code>/commit</code>、<code>/review-pr</code> 这样的斜杠命令，背后则是一套精密的发现、解析和执行机制。</p>
+<h2 id="121-skill-的本质--prompt-模板--agent-封装"><a class="header" href="#121-skill-的本质--prompt-模板--agent-封装">12.1 Skill 的本质 —— Prompt 模板 + Agent 封装</a></h2>
+<h3 id="1211-command-类型作为统一抽象"><a class="header" href="#1211-command-类型作为统一抽象">12.1.1 Command 类型作为统一抽象</a></h3>
+<p>在 Claude Code 的类型体系中，Skill 并没有独立的类型——它是 <code>Command</code> 类型中 <code>type: 'prompt'</code> 的子集。这种“Skill 即 Command“的设计使得 Skill 可以无缝集成到已有的命令系统中：</p>
+<pre><code class="language-typescript">// src/types/command.ts (概念简化)
+
+export type Command = {
+  type: 'prompt'              // 区分于 'action' 等其他命令类型
+  name: string                 // 唯一名称，如 'commit', 'review-pr'
+  description: string          // 人可读描述
+  hasUserSpecifiedDescription: boolean
+  allowedTools: string[]       // 此 Skill 允许使用的工具
+  argumentHint?: string        // 参数提示
+  whenToUse?: string           // 何时自动调用的描述
+  model?: string               // 模型覆盖
+  disableModelInvocation: boolean  // 是否禁止模型自动调用
+  userInvocable: boolean       // 用户是否可手动调用
+  context?: 'inline' | 'fork'  // 执行上下文
+  agent?: string               // 绑定的 Agent 类型
+  effort?: EffortValue         // 推理努力级别
+  paths?: string[]             // 路径匹配模式
+  hooks?: HooksSettings        // Skill 级钩子
+  skillRoot?: string           // Skill 的根目录
+  source: 'bundled' | 'user' | 'project' | 'managed' | 'plugin'
+  loadedFrom: 'skills' | 'plugin' | 'managed' | 'bundled' | 'mcp'
+  getPromptForCommand: (args: string, context: ToolUseContext)
+    =&gt; Promise&lt;ContentBlockParam[]&gt;
+}
+</code></pre>
+<p><code>getPromptForCommand</code> 是每个 Skill 的核心——它接收用户参数和工具使用上下文，返回一组内容块（ContentBlockParam），这些内容块将被注入到对话中。</p>
+<h3 id="1212-两种执行模式"><a class="header" href="#1212-两种执行模式">12.1.2 两种执行模式</a></h3>
+<p>Skill 有两种执行模式，由 <code>context</code> 字段控制：</p>
+<pre><code class="language-mermaid">graph TD
+    subgraph "Inline 模式（默认）"
+        I1["SkillTool 调用"] --&gt; I2["加载 Skill 提示词"]
+        I2 --&gt; I3["注入到主对话上下文"]
+        I3 --&gt; I4["主 Agent 在当前轮次执行"]
+        I4 --&gt; I5["返回成功标志"]
+    end
+
+    subgraph "Fork 模式"
+        F1["SkillTool 调用"] --&gt; F2["加载 Skill 提示词"]
+        F2 --&gt; F3["创建子 Agent 上下文"]
+        F3 --&gt; F4["prepareForkedCommandContext"]
+        F4 --&gt; F5["runAgent 执行子 Agent"]
+        F5 --&gt; F6["提取结果文本"]
+        F6 --&gt; F7["返回结果到主 Agent"]
+    end
+</code></pre>
+<p><strong>Inline 模式</strong>是轻量级的——Skill 提示词被注入到当前对话中，主 Agent 在同一轮次内执行。适用于简单的配置变更或信息查询。</p>
+<p><strong>Fork 模式</strong>会启动一个独立的子 Agent 来执行 Skill，拥有独立的 token 预算和执行空间。适用于复杂的多步骤任务，如代码审查或部署验证。</p>
+<h3 id="1213-bundledskilldefinition"><a class="header" href="#1213-bundledskilldefinition">12.1.3 BundledSkillDefinition</a></h3>
+<p>内置 Skill（bundled skills）通过代码注册，而非文件系统加载：</p>
+<pre><code class="language-typescript">// src/skills/bundledSkills.ts
+
+export type BundledSkillDefinition = {
+  name: string
+  description: string
+  aliases?: string[]
+  whenToUse?: string
+  argumentHint?: string
+  allowedTools?: string[]
+  model?: string
+  disableModelInvocation?: boolean
+  userInvocable?: boolean
+  isEnabled?: () =&gt; boolean         // 动态启用/禁用
+  hooks?: HooksSettings
+  context?: 'inline' | 'fork'
+  agent?: string                     // 绑定到特定 Agent
+  files?: Record&lt;string, string&gt;    // 附带的参考文件
+  getPromptForCommand: (args: string, context: ToolUseContext)
+    =&gt; Promise&lt;ContentBlockParam[]&gt;
+}
+</code></pre>
+<p><code>files</code> 字段是一个值得注意的设计——它允许 Skill 携带参考文件（如 API 文档、代码模板），这些文件在首次调用时被提取到磁盘：</p>
+<pre><code class="language-typescript">export function registerBundledSkill(definition: BundledSkillDefinition): void {
+  const { files } = definition
+
+  if (files &amp;&amp; Object.keys(files).length &gt; 0) {
+    skillRoot = getBundledSkillExtractDir(definition.name)
+    let extractionPromise: Promise&lt;string | null&gt; | undefined
+    const inner = definition.getPromptForCommand
+
+    getPromptForCommand = async (args, ctx) =&gt; {
+      // 惰性提取：首次调用时写入磁盘，后续复用
+      extractionPromise ??= extractBundledSkillFiles(definition.name, files)
+      const extractedDir = await extractionPromise
+      const blocks = await inner(args, ctx)
+      if (extractedDir === null) return blocks
+      return prependBaseDir(blocks, extractedDir)  // 前缀 "Base directory: ..."
+    }
+  }
+
+  // 注册为 Command 对象
+  bundledSkills.push({
+    type: 'prompt',
+    name: definition.name,
+    // ...
+    getPromptForCommand,
+  })
+}
+</code></pre>
+<p><code>extractionPromise</code> 的 memoization 确保了并发调用不会产生竞态条件——多个调用者 await 同一个 Promise。</p>
+<p>文件提取过程经过安全加固——使用 <code>O_NOFOLLOW | O_EXCL</code> 标志防止符号链接攻击，配合 <code>0o600</code>/<code>0o700</code> 权限确保仅文件所有者可访问：</p>
+<pre><code class="language-typescript">const SAFE_WRITE_FLAGS = process.platform === 'win32'
+  ? 'wx'
+  : fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | O_NOFOLLOW
+
+async function safeWriteFile(p: string, content: string): Promise&lt;void&gt; {
+  const fh = await open(p, SAFE_WRITE_FLAGS, 0o600)
+  try { await fh.writeFile(content, 'utf8') }
+  finally { await fh.close() }
+}
+</code></pre>
+<h2 id="122-skill-发现--文件系统插件mcp-三种来源"><a class="header" href="#122-skill-发现--文件系统插件mcp-三种来源">12.2 Skill 发现 —— 文件系统、插件、MCP 三种来源</a></h2>
+<h3 id="1221-发现架构总览"><a class="header" href="#1221-发现架构总览">12.2.1 发现架构总览</a></h3>
+<p>Skill 的发现是一个多源聚合过程：</p>
+<pre><code class="language-mermaid">flowchart TD
+    subgraph "文件系统来源"
+        FS1["~/.claude/skills/*.md&lt;br/&gt;(用户级)"]
+        FS2[".claude/skills/*.md&lt;br/&gt;(项目级)"]
+        FS3["&lt;managed&gt;/.claude/skills/*.md&lt;br/&gt;(策略级)"]
+    end
+
+    subgraph "代码注册来源"
+        B1["initBundledSkills()&lt;br/&gt;(内置 Skill)"]
+    end
+
+    subgraph "插件来源"
+        P1["插件 Manifest&lt;br/&gt;中声明的 Skill"]
+    end
+
+    subgraph "MCP 来源"
+        M1["MCP Server 提供的&lt;br/&gt;Prompt 类型资源"]
+    end
+
+    FS1 --&gt; MERGE["loadSkillsDir"]
+    FS2 --&gt; MERGE
+    FS3 --&gt; MERGE
+    B1 --&gt; REG["getBundledSkills()"]
+    P1 --&gt; PLUG["loadPluginAgents"]
+    M1 --&gt; MCP["mcpSkillBuilders"]
+
+    MERGE --&gt; CMD["getCommands()"]
+    REG --&gt; CMD
+    PLUG --&gt; CMD
+    MCP --&gt; APPSTATE["AppState.mcp.commands"]
+
+    CMD --&gt; FINAL["getAllCommands()"]
+    APPSTATE --&gt; FINAL
+    FINAL --&gt; SKILL["SkillTool 可用 Skill 列表"]
+</code></pre>
+<h3 id="1222-文件系统-skill-加载"><a class="header" href="#1222-文件系统-skill-加载">12.2.2 文件系统 Skill 加载</a></h3>
+<p><code>loadSkillsDir.ts</code> 是文件系统 Skill 加载的核心模块。它从多个配置目录加载 Markdown 文件，每个文件的 frontmatter 定义了 Skill 的元数据：</p>
+<pre><code class="language-yaml">---
+name: deploy-check
+description: "检查部署前的准备工作"
+allowed-tools:
+  - Bash
+  - Read
+  - Glob
+when_to_use: "当用户说 'deploy'、'部署' 或 '上线' 时自动调用"
+context: fork
+model: inherit
+effort: high
+---
+
+你是一个部署检查专家。在部署之前...
+</code></pre>
+<p><code>parseSkillFrontmatterFields</code> 函数解析所有 frontmatter 字段：</p>
+<pre><code class="language-typescript">// src/skills/loadSkillsDir.ts
+
+export function parseSkillFrontmatterFields(
+  frontmatter: FrontmatterData,
+  markdownContent: string,
+  resolvedName: string,
+): {
+  displayName: string | undefined
+  description: string
+  allowedTools: string[]
+  whenToUse: string | undefined
+  model: string | undefined
+  executionContext: 'fork' | undefined
+  agent: string | undefined
+  effort: EffortValue | undefined
+  hooks: HooksSettings | undefined
+  // ... 更多字段
+} {
+  const description = coerceDescriptionToString(frontmatter.description, resolvedName)
+    ?? extractDescriptionFromMarkdown(markdownContent, 'Skill')
+
+  const model = frontmatter.model === 'inherit'
+    ? undefined
+    : frontmatter.model ? parseUserSpecifiedModel(frontmatter.model) : undefined
+
+  return {
+    displayName: frontmatter.name != null ? String(frontmatter.name) : undefined,
+    description,
+    allowedTools: parseSlashCommandToolsFromFrontmatter(frontmatter['allowed-tools']),
+    executionContext: frontmatter.context === 'fork' ? 'fork' : undefined,
+    agent: frontmatter.agent as string | undefined,
+    // ...
+  }
+}
+</code></pre>
+<p>然后 <code>createSkillCommand</code> 将解析结果包装为完整的 <code>Command</code> 对象：</p>
+<pre><code class="language-typescript">export function createSkillCommand({
+  skillName, description, markdownContent,
+  allowedTools, executionContext, agent, source, loadedFrom,
+  // ...
+}: { ... }): Command {
+  return {
+    type: 'prompt',
+    name: skillName,
+    description,
+    allowedTools,
+    context: executionContext,
+    agent,
+    source,
+    loadedFrom,
+    async getPromptForCommand(args, toolUseContext) {
+      let finalContent = baseDir
+        ? `Base directory for this skill: ${baseDir}\n\n${markdownContent}`
+        : markdownContent
+
+      // 参数替换：$ARGUMENTS, $ARG1, $ARG2 等
+      finalContent = substituteArguments(finalContent, args, argumentNames)
+
+      // Shell 命令执行：{{ shell_command }} 模板
+      if (shell) {
+        finalContent = await executeShellCommandsInPrompt(finalContent, shell)
+      }
+
+      return [{ type: 'text', text: finalContent }]
+    },
+  }
+}
+</code></pre>
+<p>注意两个重要的运行时特性：</p>
+<ol>
+<li><strong>参数替换</strong>：Skill 提示词中的 <code>$ARGUMENTS</code>、<code>$ARG1</code> 等占位符会在调用时被替换为实际参数。</li>
+<li><strong>Shell 模板执行</strong>：<code>{{ ls -la }}</code> 这样的模板会在 Skill 加载时执行对应的 Shell 命令并将输出嵌入提示词。</li>
+</ol>
+<h3 id="1223-mcp-skill-发现"><a class="header" href="#1223-mcp-skill-发现">12.2.3 MCP Skill 发现</a></h3>
+<p>MCP 服务器可以暴露 Prompt 类型的资源，这些资源被 Claude Code 桥接为 Skill。<code>mcpSkillBuilders.ts</code> 通过写一次注册（Write-Once Registration）模式解决了循环依赖问题：</p>
+<pre><code class="language-typescript">// src/skills/mcpSkillBuilders.ts
+
+export type MCPSkillBuilders = {
+  createSkillCommand: typeof createSkillCommand
+  parseSkillFrontmatterFields: typeof parseSkillFrontmatterFields
+}
+
+let builders: MCPSkillBuilders | null = null
+
+export function registerMCPSkillBuilders(b: MCPSkillBuilders): void {
+  builders = b  // loadSkillsDir.ts 模块初始化时注册
+}
+
+export function getMCPSkillBuilders(): MCPSkillBuilders {
+  if (!builders) {
+    throw new Error('MCP skill builders not registered — '
+      + 'loadSkillsDir.ts has not been evaluated yet')
+  }
+  return builders
+}
+</code></pre>
+<p>为什么需要这个间接层？源码注释中有详细解释：</p>
+<blockquote>
+<p>The non-literal dynamic-import approach (“await import(variable)”) fails at runtime in Bun-bundled binaries — the specifier is resolved against the chunk’s /$bunfs/root/… path, not the original source tree. A literal dynamic import works in bunfs but dependency-cruiser tracks it, and because loadSkillsDir transitively reaches almost everything, the single new edge fans out into many new cycle violations.</p>
+</blockquote>
+<p>简单说：MCP 客户端模块需要调用 <code>createSkillCommand</code>，但 <code>loadSkillsDir</code> 又间接依赖 MCP 客户端，形成循环。<code>mcpSkillBuilders</code> 作为一个“依赖图叶子“打破了这个环。</p>
+<h3 id="1224-skill-发现的预算管理"><a class="header" href="#1224-skill-发现的预算管理">12.2.4 Skill 发现的预算管理</a></h3>
+<p>Skill 列表被注入到系统提示词中供模型发现，但过多的 Skill 描述会消耗宝贵的上下文窗口。<code>prompt.ts</code> 实现了精细的预算管理：</p>
+<pre><code class="language-typescript">// src/tools/SkillTool/prompt.ts
+
+export const SKILL_BUDGET_CONTEXT_PERCENT = 0.01  // 上下文窗口的 1%
+export const CHARS_PER_TOKEN = 4
+export const DEFAULT_CHAR_BUDGET = 8_000  // 默认 200k × 4 × 1%
+export const MAX_LISTING_DESC_CHARS = 250  // 单条描述硬上限
+
+export function formatCommandsWithinBudget(
+  commands: Command[], contextWindowTokens?: number,
+): string {
+  const budget = getCharBudget(contextWindowTokens)
+
+  // 1. 尝试完整描述
+  const fullEntries = commands.map(cmd =&gt; ({
+    cmd, full: formatCommandDescription(cmd),
+  }))
+  const fullTotal = fullEntries.reduce((sum, e) =&gt; sum + stringWidth(e.full), 0)
+  if (fullTotal &lt;= budget) return fullEntries.map(e =&gt; e.full).join('\n')
+
+  // 2. 分区：内置 Skill 永远完整，其他 Skill 可截断
+  const bundledIndices = new Set&lt;number&gt;()
+  // ...
+
+  // 3. 计算非内置 Skill 的最大描述长度
+  const availableForDescs = remainingBudget - restNameOverhead
+  const maxDescLen = Math.floor(availableForDescs / restCommands.length)
+
+  // 4. 极端情况：非内置 Skill 只显示名称
+  if (maxDescLen &lt; MIN_DESC_LENGTH) {
+    return commands.map((cmd, i) =&gt;
+      bundledIndices.has(i) ? fullEntries[i]!.full : `- ${cmd.name}`
+    ).join('\n')
+  }
+
+  // 5. 正常截断非内置 Skill 的描述
+  return commands.map((cmd, i) =&gt; {
+    if (bundledIndices.has(i)) return fullEntries[i]!.full
+    return `- ${cmd.name}: ${truncate(description, maxDescLen)}`
+  }).join('\n')
+}
+</code></pre>
+<p>这个预算分配算法的优先级是：</p>
+<ol>
+<li>内置 Skill 的描述永远完整保留</li>
+<li>其他 Skill 先尝试完整描述</li>
+<li>超预算时等比例截断非内置 Skill 的描述</li>
+<li>极端情况下非内置 Skill 只保留名称</li>
+</ol>
+<h2 id="123-skill-执行--executeforkedskill-的-fork-子-agent-模式"><a class="header" href="#123-skill-执行--executeforkedskill-的-fork-子-agent-模式">12.3 Skill 执行 —— executeForkedSkill 的 Fork 子 Agent 模式</a></h2>
+<h3 id="1231-skilltool-的整体结构"><a class="header" href="#1231-skilltool-的整体结构">12.3.1 SkillTool 的整体结构</a></h3>
+<p><code>SkillTool.ts</code> 是 Skill 系统的执行入口，它实现了完整的 Tool 接口：</p>
+<pre><code class="language-typescript">// src/tools/SkillTool/SkillTool.ts
+
+export const SkillTool: Tool&lt;InputSchema, Output, Progress&gt; = buildTool({
+  name: SKILL_TOOL_NAME,
+  searchHint: 'invoke a slash-command skill',
+  maxResultSizeChars: 100_000,
+
+  inputSchema: z.object({
+    skill: z.string().describe('The skill name'),
+    args: z.string().optional().describe('Optional arguments'),
+  }),
+
+  outputSchema: z.union([
+    // Inline 模式输出
+    z.object({ success: z.boolean(), commandName: z.string(),
+               status: z.literal('inline') }),
+    // Fork 模式输出
+    z.object({ success: z.boolean(), commandName: z.string(),
+               status: z.literal('forked'), agentId: z.string(),
+               result: z.string() }),
+  ]),
+
+  // ... call, validate 等方法
+})
+</code></pre>
+<h3 id="1232-命令解析与查找"><a class="header" href="#1232-命令解析与查找">12.3.2 命令解析与查找</a></h3>
+<p>SkillTool 的第一步是将用户指定的 skill 名称解析为 Command 对象。它通过 <code>getAllCommands</code> 整合本地和 MCP 来源：</p>
+<pre><code class="language-typescript">async function getAllCommands(context: ToolUseContext): Promise&lt;Command[]&gt; {
+  // MCP Skill（不是普通 MCP Prompt）
+  const mcpSkills = context.getAppState().mcp.commands.filter(
+    cmd =&gt; cmd.type === 'prompt' &amp;&amp; cmd.loadedFrom === 'mcp',
+  )
+  if (mcpSkills.length === 0) return getCommands(getProjectRoot())
+  const localCommands = await getCommands(getProjectRoot())
+  return uniqBy([...localCommands, ...mcpSkills], 'name')
+}
+</code></pre>
+<h3 id="1233-fork-执行详解"><a class="header" href="#1233-fork-执行详解">12.3.3 Fork 执行详解</a></h3>
+<p>当 Skill 的 <code>context</code> 为 <code>'fork'</code> 时，<code>executeForkedSkill</code> 被调用。这个函数是 Skill 系统与 Agent 系统的交汇点：</p>
+<pre><code class="language-typescript">async function executeForkedSkill(
+  command: Command &amp; { type: 'prompt' },
+  commandName: string,
+  args: string | undefined,
+  context: ToolUseContext,
+  canUseTool: CanUseToolFn,
+  parentMessage: AssistantMessage,
+  onProgress?: ToolCallProgress&lt;Progress&gt;,
+): Promise&lt;ToolResult&lt;Output&gt;&gt; {
+  const startTime = Date.now()
+  const agentId = createAgentId()
+
+  // 1. 准备 Fork 上下文——创建隔离的 AppState 和提示词消息
+  const { modifiedGetAppState, baseAgent, promptMessages, skillContent } =
+    await prepareForkedCommandContext(command, args || '', context)
+
+  // 2. 合并 Skill 的 effort 到 Agent 定义
+  const agentDefinition = command.effort !== undefined
+    ? { ...baseAgent, effort: command.effort }
+    : baseAgent
+
+  const agentMessages: Message[] = []
+
+  // 3. 运行子 Agent
+  for await (const message of runAgent({
+    agentDefinition,
+    promptMessages,
+    toolUseContext: { ...context, getAppState: modifiedGetAppState },
+    canUseTool,
+    isAsync: false,            // Skill 的 Fork 默认同步
+    querySource: 'agent:custom',
+    model: command.model as ModelAlias | undefined,
+    availableTools: context.options.tools,
+    override: { agentId },
+  })) {
+    agentMessages.push(message)
+
+    // 4. 报告进度（工具调用）
+    if ((message.type === 'assistant' || message.type === 'user') &amp;&amp; onProgress) {
+      const normalizedNew = normalizeMessages([message])
+      for (const m of normalizedNew) {
+        if (m.message.content.some(c =&gt;
+          c.type === 'tool_use' || c.type === 'tool_result')) {
+          onProgress({
+            toolUseID: `skill_${parentMessage.message.id}`,
+            data: { message: m, type: 'skill_progress', prompt: skillContent, agentId },
+          })
+        }
+      }
+    }
+  }
+
+  // 5. 提取最终结果
+  const resultText = extractResultText(agentMessages, 'Skill execution completed')
+  agentMessages.length = 0  // 释放消息内存
+
+  return {
+    data: { success: true, commandName, status: 'forked', agentId, result: resultText },
+  }
+}
+</code></pre>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User as 用户
+    participant Main as 主 Agent
+    participant SkillTool as SkillTool
+    participant Prep as prepareForkedCommandContext
+    participant SubAgent as Fork 子 Agent
+
+    User-&gt;&gt;Main: "帮我检查部署准备"
+    Main-&gt;&gt;SkillTool: Skill(skill="deploy-check")
+    SkillTool-&gt;&gt;SkillTool: getAllCommands → 查找 deploy-check
+    SkillTool-&gt;&gt;SkillTool: context === 'fork'?
+    SkillTool-&gt;&gt;Prep: prepareForkedCommandContext
+    Prep-&gt;&gt;Prep: 加载 Skill 提示词
+    Prep-&gt;&gt;Prep: 创建 modifiedGetAppState
+    Prep-&gt;&gt;Prep: 构建 promptMessages
+    Prep--&gt;&gt;SkillTool: { baseAgent, promptMessages, ... }
+
+    SkillTool-&gt;&gt;SubAgent: runAgent(agentDefinition, promptMessages)
+
+    loop 子 Agent 执行
+        SubAgent-&gt;&gt;SubAgent: query() → tool_use → tool_result
+        SubAgent--&gt;&gt;SkillTool: message（进度报告）
+    end
+
+    SubAgent--&gt;&gt;SkillTool: 最终 assistant 消息
+    SkillTool-&gt;&gt;SkillTool: extractResultText
+    SkillTool--&gt;&gt;Main: { success: true, status: 'forked', result: "..." }
+    Main--&gt;&gt;User: 转述 Skill 执行结果
+</code></pre>
+<p><code>prepareForkedCommandContext</code> 是连接 Skill 系统和 Agent 系统的桥梁函数，定义在 <code>forkedAgent.ts</code> 中。它做三件核心工作：</p>
+<ol>
+<li><strong>构建 Agent 定义</strong>：基于 Skill 的 <code>agent</code> 字段选择 Agent 类型（默认 general-purpose），并合并 Skill 的 <code>allowedTools</code>。</li>
+<li><strong>创建隔离的 AppState</strong>：修改 <code>getAppState</code> 以注入 Skill 特定的权限规则。</li>
+<li><strong>构建提示词消息</strong>：将 Skill 的 <code>getPromptForCommand</code> 输出包装为用户消息。</li>
+</ol>
+<h2 id="124-内置-skill--核心能力分析"><a class="header" href="#124-内置-skill--核心能力分析">12.4 内置 Skill —— 核心能力分析</a></h2>
+<h3 id="1241-注册入口"><a class="header" href="#1241-注册入口">12.4.1 注册入口</a></h3>
+<p>所有内置 Skill 在 <code>initBundledSkills()</code> 中注册：</p>
+<pre><code class="language-typescript">// src/skills/bundled/index.ts
+
+export function initBundledSkills(): void {
+  registerUpdateConfigSkill()    // /update-config
+  registerKeybindingsSkill()     // /keybindings
+  registerVerifySkill()          // /verify（仅内部用户）
+  registerDebugSkill()           // /debug
+  registerLoremIpsumSkill()      // /lorem（测试用）
+  registerSkillifySkill()        // /skillify
+  registerRememberSkill()        // /remember（仅内部用户）
+  registerSimplifySkill()        // /simplify
+  registerBatchSkill()           // /batch
+  registerStuckSkill()           // /stuck
+
+  // Feature flag 控制的 Skill
+  if (feature('AGENT_TRIGGERS')) {
+    const { registerLoopSkill } = require('./loop.js')
+    registerLoopSkill()           // /loop
+  }
+  if (feature('AGENT_TRIGGERS_REMOTE')) {
+    const { registerScheduleRemoteAgentsSkill } = require('./scheduleRemoteAgents.js')
+    registerScheduleRemoteAgentsSkill()  // /schedule
+  }
+  if (feature('BUILDING_CLAUDE_APPS')) {
+    const { registerClaudeApiSkill } = require('./claudeApi.js')
+    registerClaudeApiSkill()      // /claude-api
+  }
+  // ...
+}
+</code></pre>
+<p>这里大量使用了 <code>require()</code> 而非 <code>import</code>，原因是这些模块可能很大（如 <code>claudeApi.js</code> 包含 247KB 的文档字符串），惰性加载避免了不必要的启动成本。</p>
+<h3 id="1242-batch--并行工作编排"><a class="header" href="#1242-batch--并行工作编排">12.4.2 /batch —— 并行工作编排</a></h3>
+<p><code>/batch</code> 是 Skill 系统中最复杂的内置 Skill。它实现了一个完整的三阶段工作流：</p>
+<pre><code>Phase 1: Research and Plan（Plan 模式）
+  ├── 深度研究代码库
+  ├── 分解为 5-30 个独立工作单元
+  ├── 确定端到端测试方案
+  └── 提交计划供用户审批
+
+Phase 2: Spawn Workers（计划批准后）
+  ├── 每个工作单元一个后台 Agent
+  ├── 所有 Agent 使用 isolation: "worktree"
+  └── 在单条消息中并发启动
+
+Phase 3: Track Progress
+  └── 维护状态表直到所有 Worker 完成
+</code></pre>
+<p>其提示词中明确指定了 Worker 的行为约束：</p>
+<pre><code class="language-typescript">const WORKER_INSTRUCTIONS = `After you finish implementing the change:
+1. **Simplify** — Invoke the Skill tool with skill: "simplify"
+2. **Run unit tests** — Run the project's test suite
+3. **Test end-to-end** — Follow the e2e test recipe
+4. **Commit and push** — Commit, push, create PR with gh pr create
+5. **Report** — End with: PR: &lt;url&gt;`
+</code></pre>
+<p>这展示了 Skill 和 Agent 的嵌套组合能力——<code>/batch</code> Skill 编排了 Plan 模式、多个并行 Agent（每个在独立 worktree 中）以及对 <code>/simplify</code> Skill 的递归调用。</p>
+<h3 id="1243-remember--记忆管理"><a class="header" href="#1243-remember--记忆管理">12.4.3 /remember —— 记忆管理</a></h3>
+<p><code>/remember</code> Skill 是 Agent 记忆系统的用户界面。它审查所有记忆层（auto-memory、CLAUDE.md、CLAUDE.local.md），并提出整理建议：</p>
+<pre><code class="language-typescript">registerBundledSkill({
+  name: 'remember',
+  description: 'Review auto-memory entries and propose promotions...',
+  whenToUse: 'Use when the user wants to review, organize, '
+    + 'or promote their auto-memory entries...',
+  isEnabled: () =&gt; isAutoMemoryEnabled(),  // 仅在自动记忆启用时可用
+  async getPromptForCommand(args) {
+    let prompt = SKILL_PROMPT  // 详细的审查流程指令
+    if (args) prompt += `\n## Additional context from user\n\n${args}`
+    return [{ type: 'text', text: prompt }]
+  },
+})
+</code></pre>
+<p><code>isEnabled</code> 回调使得 Skill 的可见性与系统配置动态关联——当自动记忆未启用时，<code>/remember</code> 不会出现在 Skill 列表中。</p>
+<h3 id="1244-loop--循环执行调度"><a class="header" href="#1244-loop--循环执行调度">12.4.4 /loop —— 循环执行调度</a></h3>
+<p><code>/loop</code> 展示了 Skill 如何与底层的 Cron 系统集成：</p>
+<pre><code class="language-typescript">function buildPrompt(args: string): string {
+  return `# /loop — schedule a recurring prompt
+
+Parse the input below into [interval] &lt;prompt...&gt; and schedule it
+with ${CRON_CREATE_TOOL_NAME}.
+
+## Parsing (in priority order)
+1. **Leading token**: if first token matches ^\\d+[smhd]$ → interval
+2. **Trailing "every" clause**: if ends with "every &lt;N&gt;&lt;unit&gt;" → extract interval
+3. **Default**: interval is 10m, entire input is prompt
+
+## Interval → cron
+| Pattern | Cron | Notes |
+|---------|------|-------|
+| Nm (N≤59) | */N * * * * | every N minutes |
+| Nm (N≥60) | 0 */H * * * | round to hours |
+| Nh | 0 */N * * * | every N hours |
+| Nd | 0 0 */N * * | every N days |
+
+## Action
+1. Call ${CRON_CREATE_TOOL_NAME}
+2. Confirm schedule details
+3. Execute the prompt immediately
+
+## Input
+${args}`
+}
+</code></pre>
+<p>这个 Skill 不直接操作 Cron 系统——它生成一个结构化的指令提示词，让模型自行调用 <code>ScheduleCronTool</code>。这种“Prompt as Controller“的模式是 Skill 系统的核心设计理念。</p>
+<h3 id="1245-claude-api--智能文档注入"><a class="header" href="#1245-claude-api--智能文档注入">12.4.5 /claude-api —— 智能文档注入</a></h3>
+<p><code>/claude-api</code> 是一个资源密集型 Skill，它根据项目语言环境动态加载相关的 API 文档：</p>
+<pre><code class="language-typescript">async function detectLanguage(): Promise&lt;DetectedLanguage | null&gt; {
+  const cwd = getCwd()
+  const entries = await readdir(cwd)
+  for (const [lang, indicators] of Object.entries(LANGUAGE_INDICATORS)) {
+    for (const indicator of indicators) {
+      if (indicator.startsWith('.')) {
+        if (entries.some(e =&gt; e.endsWith(indicator))) return lang
+      } else {
+        if (entries.includes(indicator)) return lang
+      }
+    }
+  }
+  return null
+}
+</code></pre>
+<p>检测到 Python 项目时加载 Python SDK 文档，检测到 TypeScript 时加载 TS SDK 文档。由于文档总计 247KB，使用惰性加载避免启动时的内存开销：</p>
+<pre><code class="language-typescript">type SkillContent = typeof import('./claudeApiContent.js')
+// 只在 /claude-api 被调用时才 require
+</code></pre>
+<h3 id="1246-verify--结构化验证"><a class="header" href="#1246-verify--结构化验证">12.4.6 /verify —— 结构化验证</a></h3>
+<p><code>/verify</code> Skill 通过 <code>files</code> 字段携带参考文件，让模型在运行时按需读取验证策略文档：</p>
+<pre><code class="language-typescript">registerBundledSkill({
+  name: 'verify',
+  description: DESCRIPTION,
+  files: SKILL_FILES,  // 验证策略、检查清单等参考文件
+  async getPromptForCommand(args) {
+    const parts: string[] = [SKILL_BODY.trimStart()]
+    if (args) parts.push(`## User Request\n\n${args}`)
+    return [{ type: 'text', text: parts.join('\n\n') }]
+  },
+})
+</code></pre>
+<h2 id="125-skill-与插件的关系"><a class="header" href="#125-skill-与插件的关系">12.5 Skill 与插件的关系</a></h2>
+<h3 id="1251-插件-skill-的集成路径"><a class="header" href="#1251-插件-skill-的集成路径">12.5.1 插件 Skill 的集成路径</a></h3>
+<p>插件（Plugin）可以通过其 Manifest 声明 Skill。这些 Skill 经过 <code>loadPluginAgents</code> 加载后，以 <code>source: 'plugin'</code> 的身份加入 Skill 列表。插件 Skill 与文件系统 Skill 有相同的功能（frontmatter 配置、Fork 执行等），但多了安全约束：</p>
+<ol>
+<li><strong><code>CUSTOM_AGENT_DISALLOWED_TOOLS</code></strong>：非内置 Agent（包括插件 Agent）被禁止使用某些敏感工具</li>
+<li><strong>pluginOnlyPolicy</strong>：组织管理员可以要求所有 Skill 必须来自已批准的插件</li>
+</ol>
+<h3 id="1252-mcp-与-skill-的交叉"><a class="header" href="#1252-mcp-与-skill-的交叉">12.5.2 MCP 与 Skill 的交叉</a></h3>
+<p>MCP 服务器可以暴露 Prompt 资源，Claude Code 将其桥接为 Skill。但不是所有 MCP Prompt 都是 Skill——只有带有 Skill frontmatter 的 Prompt 才会被识别为 Skill：</p>
+<pre><code class="language-typescript">// SkillTool.ts 中的过滤逻辑
+const mcpSkills = context.getAppState().mcp.commands.filter(
+  cmd =&gt; cmd.type === 'prompt' &amp;&amp; cmd.loadedFrom === 'mcp',
+)
+</code></pre>
+<pre><code class="language-mermaid">graph TD
+    subgraph "MCP Prompt"
+        MP1["普通 MCP Prompt&lt;br/&gt;（不可通过 SkillTool 调用）"]
+        MP2["MCP Skill&lt;br/&gt;（loadedFrom === 'mcp'）"]
+    end
+
+    subgraph "Skill 系统"
+        S1["文件系统 Skill"]
+        S2["内置 Skill"]
+        S3["插件 Skill"]
+    end
+
+    MP2 --&gt; |"桥接为 Command"| SKILL["SkillTool 可调用"]
+    S1 --&gt; SKILL
+    S2 --&gt; SKILL
+    S3 --&gt; SKILL
+    MP1 --&gt; |"不桥接"| EXCLUDED["不可通过 SkillTool 访问"]
+</code></pre>
+<h3 id="1253-skill-的安全模型"><a class="header" href="#1253-skill-的安全模型">12.5.3 Skill 的安全模型</a></h3>
+<p>Skill 的安全性通过多层机制保障：</p>
+<ol>
+<li><strong>权限模式继承</strong>：Fork 模式的 Skill 运行在子 Agent 中，受父代权限模式约束</li>
+<li><strong>工具白名单</strong>：<code>allowedTools</code> 限制 Skill 可以使用的工具</li>
+<li><strong>路径限制</strong>：<code>paths</code> 字段限制 Skill 仅在特定目录下生效</li>
+<li><strong>钩子审计</strong>：Skill 级 <code>hooks</code> 可以在工具调用前后执行审计逻辑</li>
+<li><strong>分类器审查</strong>：异步执行的 Skill 结果经过 Handoff 分类器审查</li>
+</ol>
+<h2 id="126-本章小结"><a class="header" href="#126-本章小结">12.6 本章小结</a></h2>
+<p>Skill 系统是 Claude Code 架构中“最高层次的抽象“——它站在 Agent、工具、MCP 之上，将复杂的多步骤工作流封装为用户可以一键触发的能力单元。</p>
+<ol>
+<li>
+<p><strong>统一的 Command 抽象</strong>：Skill 不是独立类型，而是 <code>Command</code> 类型的一个变体。这使得 Skill 可以无缝集成到命令系统中，复用已有的发现和路由机制。</p>
+</li>
+<li>
+<p><strong>三源聚合的发现机制</strong>：文件系统、代码注册（bundled）和 MCP 三种来源通过统一的 <code>Command</code> 接口聚合，为用户提供一致的体验。</p>
+</li>
+<li>
+<p><strong>Inline/Fork 双模执行</strong>：简单 Skill 以 Inline 模式直接注入上下文，复杂 Skill 以 Fork 模式启动独立子 Agent——两种模式通过 <code>context</code> 字段声明式选择。</p>
+</li>
+<li>
+<p><strong>预算感知的发现列表</strong>：Skill 列表的展示严格控制在上下文窗口的 1% 以内，内置 Skill 优先保留完整描述。</p>
+</li>
+<li>
+<p><strong>“Prompt as Controller“模式</strong>：Skill 不直接操作系统——它生成结构化的提示词，引导模型使用已有工具完成工作。这种间接层使得 Skill 具有极高的灵活性和可组合性。</p>
+</li>
+<li>
+<p><strong>安全纵深</strong>：从 <code>allowedTools</code> 白名单到路径限制，从权限模式继承到 Handoff 分类器审查，Skill 的安全性建立在多重防线之上。</p>
+</li>
+</ol>
+<p>至此，本书的第四部分——Agent 系统——全部完成。我们从 Agent 的静态定义出发，经过子代编排的动态运行时，最终到达 Skill 这个最高层次的抽象。这三层共同构成了 Claude Code 的“智能执行层“——它不仅仅是一个工具调用框架，更是一个能够自主规划、并发执行、持久记忆的 Agent 操作系统。</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../part4-agent/ch11-subagent.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                            </a>
+
+                            <a rel="next prefetch" href="../part5-permission/ch13-permission-model.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../part4-agent/ch11-subagent.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
+                    </a>
+
+                    <a rel="next prefetch" href="../part5-permission/ch13-permission-model.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr-ef4e11c1.min.js"></script>
+        <script src="../mark-09e88c2c.min.js"></script>
+        <script src="../searcher-c2a407aa.js"></script>
+
+        <script src="../clipboard-1626706a.min.js"></script>
+        <script src="../highlight-abc7f01d.js"></script>
+        <script src="../book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid-3e2002bf.min.js"></script>
+        <script src="../mermaid-init-da87b466.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

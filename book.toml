@@ -1,0 +1,21 @@
+[book]
+title = "深入理解 Claude Code 源码"
+authors = ["Alex Zhang", "Claude Opus 4.6"]
+description = "系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学"
+language = "zh"
+src = "src"
+
+[build]
+build-dir = "docs"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/sawzhang/deep-dive-claude-code"
+edit-url-template = "https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/{path}"
+no-section-label = false
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[output.html.fold]
+enable = true
+level = 1
