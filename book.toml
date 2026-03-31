@@ -9,11 +9,12 @@ src = "src"
 build-dir = "docs"
 
 [output.html]
-default-theme = "navy"
-preferred-dark-theme = "navy"
+default-theme = "light"
+preferred-dark-theme = "ayu"
 git-repository-url = "https://github.com/sawzhang/deep-dive-claude-code"
 edit-url-template = "https://github.com/sawzhang/deep-dive-claude-code/edit/main/src/{path}"
 no-section-label = false
+additional-css = ["custom.css"]
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
 
 [output.html.fold]

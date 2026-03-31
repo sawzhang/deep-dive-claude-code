@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="zh" class="navy sidebar-visible" dir="ltr">
+<html lang="zh" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -28,14 +28,15 @@
         <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="custom-1db0aa3d.css">
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
             const path_to_root = "";
-            const default_light_theme = "navy";
-            const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-03f343ff.js";
+            const default_light_theme = "light";
+            const default_dark_theme = "ayu";
+            window.path_to_searchindex_js = "searchindex-9d6a71a9.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-3eef0c72.js"></script>
@@ -76,7 +77,7 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             const html = document.documentElement;
-            html.classList.remove('navy')
+            html.classList.remove('light')
             html.classList.add(theme);
             html.classList.add("js");
         </script>
@@ -185,62 +186,45 @@
 <p>系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学</p>
 </blockquote>
 <p>本书参考《Elasticsearch 源码解析与优化实战》《深入理解 Linux 内核》《C++ 编程思想》等经典技术书籍的架构风格，从源码层面系统剖析 Claude Code 的设计思想与工程实践。</p>
-<h2 id="目录结构"><a class="header" href="#目录结构">目录结构</a></h2>
-<pre><code>claude-code-book/
-├── README.md                          # 本文件
-├── SUMMARY.md                         # 全书目录
-├── part1-foundation/                  # 第一部分：基础架构
-│   ├── ch01-overview.md               # 第1章：全景概览
-│   ├── ch02-bootstrap.md              # 第2章：启动流程
-│   └── ch03-type-system.md            # 第3章：类型系统设计
-├── part2-core-engine/                 # 第二部分：核心引擎
-│   ├── ch04-query-engine.md           # 第4章：查询引擎
-│   ├── ch05-message-system.md         # 第5章：消息系统
-│   └── ch06-streaming.md             # 第6章：流式处理
-├── part3-tool-system/                 # 第三部分：工具系统
-│   ├── ch07-tool-architecture.md      # 第7章：工具架构
-│   ├── ch08-builtin-tools.md          # 第8章：内置工具
-│   └── ch09-tool-execution.md         # 第9章：工具执行管线
-├── part4-agent/                       # 第四部分：Agent 系统
-│   ├── ch10-agent-model.md            # 第10章：Agent 模型
-│   ├── ch11-subagent.md               # 第11章：子Agent编排
-│   └── ch12-skill-system.md           # 第12章：Skill 系统
-├── part5-permission/                  # 第五部分：权限与安全
-│   ├── ch13-permission-model.md       # 第13章：权限模型
-│   └── ch14-bash-security.md          # 第14章：Bash 安全分析
-├── part6-mcp/                         # 第六部分：MCP 协议
-│   ├── ch15-mcp-protocol.md           # 第15章：MCP 协议实现
-│   └── ch16-mcp-auth.md              # 第16章：MCP 认证体系
-├── part7-state/                       # 第七部分：状态管理
-│   ├── ch17-state-management.md       # 第17章：状态管理
-│   └── ch18-conversation.md           # 第18章：会话管理与压缩
-├── part8-ui/                          # 第八部分：终端 UI
-│   ├── ch19-ink-react.md              # 第19章：React + Ink 终端 UI
-│   └── ch20-repl.md                   # 第20章：REPL 实现
-├── part9-engineering/                 # 第九部分：工程实践
-│   ├── ch21-performance.md            # 第21章：性能优化
-│   ├── ch22-testing.md                # 第22章：测试策略
-│   └── ch23-build-system.md           # 第23章：构建系统
-├── part10-philosophy/                 # 第十部分：编程思想
-│   ├── ch24-design-patterns.md        # 第24章：设计模式提炼
-│   └── ch25-philosophy.md             # 第25章：工程哲学
-└── appendix/                          # 附录
-    ├── appendix-a-glossary.md         # 附录A：术语表
-    └── appendix-b-source-map.md       # 附录B：源码导航
-</code></pre>
-<h2 id="技术栈"><a class="header" href="#技术栈">技术栈</a></h2>
+<hr>
+<h2 id="这本书讲什么"><a class="header" href="#这本书讲什么">这本书讲什么</a></h2>
+<p>Claude Code 是 Anthropic 推出的命令行 AI 编程助手，也是目前业界最复杂的终端 AI Agent 实现之一。本书覆盖其<strong>全部核心子系统</strong>：</p>
 <ul>
-<li><strong>运行时</strong>: Bun (TypeScript)</li>
-<li><strong>UI 框架</strong>: React + Ink (终端渲染)</li>
-<li><strong>状态管理</strong>: Zustand-like Store</li>
-<li><strong>类型系统</strong>: Zod Schema</li>
-<li><strong>协议</strong>: MCP (Model Context Protocol)</li>
-<li><strong>构建</strong>: Bun Bundle + Feature Flags</li>
+<li><strong>查询引擎</strong> —— 一次对话如何在 QueryEngine 状态机中流转</li>
+<li><strong>工具系统</strong> —— 40+ 工具的注册、权限检查、并发执行</li>
+<li><strong>Agent 系统</strong> —— Fork/Resume 编排、Skill 发现与执行</li>
+<li><strong>权限模型</strong> —— 六层安全模式、Bash 命令语义分析</li>
+<li><strong>MCP 协议</strong> —— 七种传输层、OAuth/XAA 认证体系</li>
+<li><strong>状态管理</strong> —— 34 行 Store 如何撑起 450 行 AppState</li>
+<li><strong>性能优化</strong> —— 并行预取、三层 Memoization、编译时 DCE</li>
 </ul>
-<h2 id="作者"><a class="header" href="#作者">作者</a></h2>
-<p>由 Claude Code Agent Team 协作撰写</p>
-<h2 id="license"><a class="header" href="#license">License</a></h2>
-<p>MIT</p>
+<h2 id="数据一览"><a class="header" href="#数据一览">数据一览</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>指标</th><th>数值</th></tr>
+</thead>
+<tbody>
+<tr><td>章节</td><td>25 章 + 2 附录</td></tr>
+<tr><td>总行数</td><td>14,500+ 行</td></tr>
+<tr><td>Mermaid 图表</td><td>101 个</td></tr>
+<tr><td>TypeScript 代码块</td><td>467 个</td></tr>
+<tr><td>术语表</td><td>55 个条目</td></tr>
+<tr><td>源码索引</td><td>90+ 关键文件</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="如何阅读"><a class="header" href="#如何阅读">如何阅读</a></h2>
+<p><strong>推荐路线</strong>：按顺序阅读 Part 1-2 建立全局认知，然后根据兴趣跳转到具体部分。</p>
+<p><strong>快速入门</strong>：如果时间有限，优先阅读以下章节：</p>
+<ul>
+<li><a href="part1-foundation/ch01-overview.html">第 1 章：全景概览</a> —— 建立整体认知</li>
+<li><a href="part3-tool-system/ch07-tool-architecture.html">第 7 章：工具架构</a> —— 理解核心接口</li>
+<li><a href="part4-agent/ch10-agent-model.html">第 10 章：Agent 模型</a> —— 理解 Agent 系统</li>
+<li><a href="part10-philosophy/ch25-philosophy.html">第 25 章：工程哲学</a> —— 提炼设计思想</li>
+</ul>
+<h2 id="源码版本"><a class="header" href="#源码版本">源码版本</a></h2>
+<p>本书基于 Claude Code <strong>v2.1.x</strong> 版本的源码分析。源码文件路径可能随版本更新而变化，请参考<a href="appendix/appendix-b-source-map.html">附录 B：源码导航</a>定位关键文件。</p>
 
                     </main>
 

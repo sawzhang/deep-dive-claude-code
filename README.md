@@ -1,68 +1,82 @@
 # 深入理解 Claude Code 源码
 
+[![GitHub stars](https://img.shields.io/github/stars/sawzhang/deep-dive-claude-code?style=social)](https://github.com/sawzhang/deep-dive-claude-code)
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+
 > 系统剖析 Anthropic Claude Code CLI 的架构设计、工程实践与编程哲学
 
-本书参考《Elasticsearch 源码解析与优化实战》《深入理解 Linux 内核》《C++ 编程思想》等经典技术书籍的架构风格，从源码层面系统剖析 Claude Code 的设计思想与工程实践。
+**[在线阅读 Read Online](https://sawzhang.github.io/deep-dive-claude-code/)**
 
-## 目录结构
+---
+
+## 这本书讲什么
+
+Claude Code 是 Anthropic 推出的命令行 AI 编程助手，也是目前业界最复杂的终端 AI Agent 实现之一。本书从源码层面，参考《Elasticsearch 源码解析与优化实战》《深入理解 Linux 内核》《C++ 编程思想》等经典技术书籍的架构风格，系统剖析 Claude Code 的设计思想与工程实践。
+
+**核心特色**：
+- 所有分析基于**真实源码引用**，非泛泛而谈
+- **101 个 Mermaid 图表**（架构图、时序图、状态机、流程图）
+- **467 个 TypeScript 代码块**，带语法高亮和注释
+- 深入到**设计决策和工程权衡**，不止于 API 描述
+
+## 目录概览
+
+| 部分 | 章节 | 主题 |
+|------|------|------|
+| **一、基础架构** | Ch1-3 | 全景概览、启动流程、类型系统 |
+| **二、核心引擎** | Ch4-6 | 查询引擎、消息系统、流式处理 |
+| **三、工具系统** | Ch7-9 | Tool 接口、内置工具、并发执行管线 |
+| **四、Agent 系统** | Ch10-12 | Agent 模型、Fork/Resume 编排、Skill |
+| **五、权限与安全** | Ch13-14 | 六层权限模式、Bash 安全分析 |
+| **六、MCP 协议** | Ch15-16 | 七种传输层、OAuth/XAA 认证 |
+| **七、状态管理** | Ch17-18 | React Store、会话压缩与恢复 |
+| **八、终端 UI** | Ch19-20 | React+Ink、REPL 实现 |
+| **九、工程实践** | Ch21-23 | 性能优化、测试策略、构建系统 |
+| **十、编程思想** | Ch24-25 | 设计模式、工程哲学 |
+| **附录** | A-B | 术语表(55 条)、源码导航(90+ 文件) |
+
+## 数据一览
 
 ```
-claude-code-book/
-├── README.md                          # 本文件
-├── SUMMARY.md                         # 全书目录
-├── part1-foundation/                  # 第一部分：基础架构
-│   ├── ch01-overview.md               # 第1章：全景概览
-│   ├── ch02-bootstrap.md              # 第2章：启动流程
-│   └── ch03-type-system.md            # 第3章：类型系统设计
-├── part2-core-engine/                 # 第二部分：核心引擎
-│   ├── ch04-query-engine.md           # 第4章：查询引擎
-│   ├── ch05-message-system.md         # 第5章：消息系统
-│   └── ch06-streaming.md             # 第6章：流式处理
-├── part3-tool-system/                 # 第三部分：工具系统
-│   ├── ch07-tool-architecture.md      # 第7章：工具架构
-│   ├── ch08-builtin-tools.md          # 第8章：内置工具
-│   └── ch09-tool-execution.md         # 第9章：工具执行管线
-├── part4-agent/                       # 第四部分：Agent 系统
-│   ├── ch10-agent-model.md            # 第10章：Agent 模型
-│   ├── ch11-subagent.md               # 第11章：子Agent编排
-│   └── ch12-skill-system.md           # 第12章：Skill 系统
-├── part5-permission/                  # 第五部分：权限与安全
-│   ├── ch13-permission-model.md       # 第13章：权限模型
-│   └── ch14-bash-security.md          # 第14章：Bash 安全分析
-├── part6-mcp/                         # 第六部分：MCP 协议
-│   ├── ch15-mcp-protocol.md           # 第15章：MCP 协议实现
-│   └── ch16-mcp-auth.md              # 第16章：MCP 认证体系
-├── part7-state/                       # 第七部分：状态管理
-│   ├── ch17-state-management.md       # 第17章：状态管理
-│   └── ch18-conversation.md           # 第18章：会话管理与压缩
-├── part8-ui/                          # 第八部分：终端 UI
-│   ├── ch19-ink-react.md              # 第19章：React + Ink 终端 UI
-│   └── ch20-repl.md                   # 第20章：REPL 实现
-├── part9-engineering/                 # 第九部分：工程实践
-│   ├── ch21-performance.md            # 第21章：性能优化
-│   ├── ch22-testing.md                # 第22章：测试策略
-│   └── ch23-build-system.md           # 第23章：构建系统
-├── part10-philosophy/                 # 第十部分：编程思想
-│   ├── ch24-design-patterns.md        # 第24章：设计模式提炼
-│   └── ch25-philosophy.md             # 第25章：工程哲学
-└── appendix/                          # 附录
-    ├── appendix-a-glossary.md         # 附录A：术语表
-    └── appendix-b-source-map.md       # 附录B：源码导航
+25 章 + 2 附录 | 14,500+ 行 | ~12 万字
+101 个 Mermaid 图表 | 467 个代码块 | 55 个术语定义
+```
+
+## 适合谁读
+
+- 想了解 **AI Agent 系统工程实践**的开发者
+- 正在使用 Claude Code 并想**深入理解其内部机制**的用户
+- 对**大型 TypeScript 项目架构**感兴趣的工程师
+- 研究 **MCP 协议**和 AI 工具集成的技术人员
+
+## 本地构建
+
+```bash
+# 安装 mdBook
+brew install mdbook
+
+# 构建
+mdbook build
+
+# 本地预览
+mdbook serve --open
 ```
 
 ## 技术栈
 
+本书分析的 Claude Code 技术栈：
+
 - **运行时**: Bun (TypeScript)
 - **UI 框架**: React + Ink (终端渲染)
 - **状态管理**: Zustand-like Store
-- **类型系统**: Zod Schema
+- **类型验证**: Zod Schema
 - **协议**: MCP (Model Context Protocol)
-- **构建**: Bun Bundle + Feature Flags
+- **构建**: Bun Bundle + Feature Flags (编译时 DCE)
 
-## 作者
+## 贡献
 
-由 Claude Code Agent Team 协作撰写
+欢迎通过 [Issue](https://github.com/sawzhang/deep-dive-claude-code/issues) 报告勘误或提出建议，也欢迎通过 [Pull Request](https://github.com/sawzhang/deep-dive-claude-code/pulls) 贡献内容改进。
 
 ## License
 
-MIT
+本书采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) 协议。

@@ -1,0 +1,177 @@
+/* 浅色简约风格 — 深入理解 Claude Code 源码 */
+
+/* 整体排版 */
+:root {
+  --content-max-width: 900px;
+}
+
+.light {
+  --bg: #fafafa;
+  --fg: #1a1a2e;
+  --sidebar-bg: #f5f5f5;
+  --sidebar-fg: #333;
+  --sidebar-active: #d4a373;
+  --links: #6c5ce7;
+  --inline-code-color: #e17055;
+  --quote-bg: #f0f0f0;
+  --quote-border: #d4a373;
+  --table-border-color: #e0e0e0;
+  --table-header-bg: #f5f0eb;
+  --table-alternate-bg: #faf8f5;
+  --searchbar-border-color: #ddd;
+  --searchbar-bg: #fff;
+  --searchresults-header-fg: #1a1a2e;
+  --searchresults-border-color: #e0e0e0;
+}
+
+/* 标题层级 */
+.content main h1 {
+  font-size: 2em;
+  font-weight: 700;
+  color: #1a1a2e;
+  border-bottom: 3px solid #d4a373;
+  padding-bottom: 0.4em;
+  margin-top: 1.5em;
+}
+
+.content main h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: #2d3436;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.3em;
+  margin-top: 2em;
+}
+
+.content main h3 {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #636e72;
+  margin-top: 1.5em;
+}
+
+/* 引言块 */
+.content main blockquote {
+  border-left: 4px solid #d4a373;
+  background: #faf8f5;
+  padding: 1em 1.2em;
+  margin: 1.5em 0;
+  font-style: italic;
+  color: #555;
+  border-radius: 0 8px 8px 0;
+}
+
+/* 代码块 */
+.content main pre {
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.content main code {
+  font-size: 0.9em;
+  font-family: 'Source Code Pro', 'JetBrains Mono', monospace;
+}
+
+.content main :not(pre) > code {
+  background: #f5f0eb;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: #e17055;
+}
+
+/* 表格 */
+.content main table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5em 0;
+  font-size: 0.95em;
+}
+
+.content main table th {
+  background: #f5f0eb;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.7em 1em;
+  border-bottom: 2px solid #d4a373;
+}
+
+.content main table td {
+  padding: 0.6em 1em;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.content main table tr:hover {
+  background: #faf8f5;
+}
+
+/* Mermaid 图表容器 */
+.mermaid {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 1.5em;
+  margin: 1.5em 0;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.mermaid svg {
+  max-width: 100%;
+}
+
+/* 侧边栏 */
+.sidebar .sidebar-scrollbox {
+  padding: 1em;
+}
+
+.sidebar ol.chapter li {
+  margin: 0.3em 0;
+}
+
+.sidebar ol.chapter li.part-title {
+  font-weight: 700;
+  color: #d4a373;
+  margin-top: 1.2em;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 导航按钮 */
+.nav-chapters {
+  opacity: 0.4;
+  transition: opacity 0.2s;
+}
+
+.nav-chapters:hover {
+  opacity: 0.9;
+}
+
+/* 页面宽度优化 */
+.content main {
+  max-width: 900px;
+  margin: 0 auto;
+  line-height: 1.8;
+}
+
+/* 段落间距 */
+.content main p {
+  margin: 1em 0;
+}
+
+/* 列表 */
+.content main li {
+  margin: 0.3em 0;
+  line-height: 1.7;
+}
+
+/* 打印优化 */
+@media print {
+  .sidebar, .nav-chapters, .menu-bar {
+    display: none !important;
+  }
+  .content main {
+    max-width: 100%;
+  }
+}
